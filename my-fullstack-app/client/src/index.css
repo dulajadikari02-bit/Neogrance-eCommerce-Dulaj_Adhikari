@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+/* 1. Load the custom font */
+@font-face {
+  font-family: 'Konexy';
+  src: url('./fonts/KonexyPersonalUse.otf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* 2. Register the font with Tailwind's theme (Version 4 syntax) */
+@theme {
+  --font-konexy: "Konexy", sans-serif;
+}

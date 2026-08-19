@@ -1,0 +1,16 @@
+{
+  "name": "neogrance",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n SERVER,CLIENT -c blue,magenta \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

@@ -1,0 +1,60 @@
+# ==============================
+# Neogrance - root .gitignore
+# ==============================
+
+# admin-app is its own separate git repository (has its own history/commits).
+# It is intentionally excluded from this repo entirely.
+my-fullstack-app/admin-app/
+
+# --- Dependencies ---
+node_modules/
+**/node_modules/
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# --- AI / editor tool metadata ---
+.claude/
+**/.claude/
+.cursor/
+**/.cursor/
+.windsurf/
+**/.windsurf/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+CLAUDE.md
+AGENTS.md
+
+# --- Logs ---
+*.log
+**/*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- Build output ---
+dist/
+dist-ssr/
+build/
+*.local
+
+# --- OS junk files ---
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Note: server/uploads/ has its own nested .gitignore (server/.gitignore)
+# that already controls what gets committed there - not duplicated here.
