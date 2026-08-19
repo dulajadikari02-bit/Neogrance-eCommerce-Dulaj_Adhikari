@@ -1,9 +1,6 @@
 node_modules/
 .env
 
-# Built React frontend, copied in here at deploy time (see index.js) — not source, don't commit
-public/
-
 uploads/*
 !uploads/products/
 !uploads/banner/
