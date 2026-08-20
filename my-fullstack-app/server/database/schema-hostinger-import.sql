@@ -242,6 +242,20 @@ CREATE TABLE IF NOT EXISTS promo_banner (
 ) ENGINE=InnoDB;
 
 -- ----------------------------------------------------------------------------
+-- media (uploaded images stored as binary data in the database itself,
+-- instead of on the app server's disk — Hostinger's Node.js hosting gives
+-- each deploy a fresh, separate folder, so anything saved to local disk
+-- (like a plain uploads/ folder) is lost on the very next redeploy. Storing
+-- image bytes here means they survive redeploys since they live in MySQL.)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS media (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  mime_type   VARCHAR(100) NOT NULL,
+  data        LONGBLOB NOT NULL,
+  created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ----------------------------------------------------------------------------
 -- hero_banner (single editable row — the big full-screen banner at the very
 -- top of the homepage, separate from promo_banner further down the page)
 -- ----------------------------------------------------------------------------

@@ -14,6 +14,7 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 
 import { assertDbConnection, pool } from './src/config/db.js';
 import apiRoutes from './src/routes/index.js';
+import mediaRoutes from './src/routes/media.routes.js';
 import { notFoundHandler, errorHandler } from './src/middleware/errorHandler.js';
 
 const app = express();
@@ -33,14 +34,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Static file uploads (admin-uploaded product/banner images, payment slips, review photos).
-// Created up front — a fresh deploy from git won't have these (uploads/ is gitignored
-// aside from a couple .gitkeep'd folders), and multer's diskStorage does NOT create
+// Payment slips are the one upload type still saved to local disk (they can
+// be PDFs, and they're admin-viewed proof of payment rather than storefront
+// content) — created up front since multer's diskStorage does NOT create
 // missing destination directories itself; the first upload would crash with ENOENT.
-for (const dir of ['products', 'banner', 'hero', 'slips', 'reviews']) {
-  fs.mkdirSync(path.join(process.cwd(), 'uploads', dir), { recursive: true });
-}
+// Everything else (product/banner/hero/review photos) is stored as binary
+// data in the database instead — see /media below — specifically because
+// Hostinger gives each deploy its own fresh folder, so anything only saved
+// to local disk here is lost on the next redeploy.
+fs.mkdirSync(path.join(process.cwd(), 'uploads', 'slips'), { recursive: true });
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/media', mediaRoutes);
 
 // API routes
 app.use('/api', apiRoutes);

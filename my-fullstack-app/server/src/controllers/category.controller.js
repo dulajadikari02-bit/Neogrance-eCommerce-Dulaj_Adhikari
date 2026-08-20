@@ -2,6 +2,7 @@ import { body } from 'express-validator';
 import { pool } from '../config/db.js';
 import { catchAsync, ApiError } from '../utils/catchAsync.js';
 import { checkValidation } from '../utils/validate.js';
+import { deleteMediaByUrl } from '../utils/media.js';
 
 const mapCategory = (c) => ({
   id: c.id,
@@ -57,7 +58,7 @@ export const createCategory = catchAsync(async (req, res) => {
   checkValidation(req);
   const { name, gender, type, displayOrder } = req.body;
   const slug = await uniqueSlug(name);
-  const imageUrl = req.file ? `/uploads/products/${req.file.filename}` : (req.body.imageUrl || null);
+  const imageUrl = req.file ? req.file.url : (req.body.imageUrl || null);
 
   const [result] = await pool.query(
     'INSERT INTO categories (name, slug, gender, type, image_url, display_order) VALUES (?, ?, ?, ?, ?, ?)',
@@ -74,13 +75,17 @@ export const updateCategory = catchAsync(async (req, res) => {
 
   const { name, gender, type, displayOrder } = req.body;
   const slug = name && name !== existing.name ? await uniqueSlug(name, id) : existing.slug;
-  const imageUrl = req.file ? `/uploads/products/${req.file.filename}` : (req.body.imageUrl || existing.image_url);
+  const imageUrl = req.file ? req.file.url : (req.body.imageUrl || existing.image_url);
 
   await pool.query(
     'UPDATE categories SET name=?, slug=?, gender=?, type=?, image_url=?, display_order=? WHERE id = ?',
     [name || existing.name, slug, gender || existing.gender, type || existing.type, imageUrl, displayOrder ?? existing.display_order, id]
   );
   res.json({ message: 'Category updated.' });
+
+  if (req.file && existing.image_url && existing.image_url !== imageUrl) {
+    deleteMediaByUrl(existing.image_url).catch(() => {});
+  }
 });
 
 export const deleteCategory = catchAsync(async (req, res) => {
@@ -88,7 +93,12 @@ export const deleteCategory = catchAsync(async (req, res) => {
   if (inUse.count > 0) {
     throw new ApiError(409, `Cannot delete — ${inUse.count} product(s) still use this category.`);
   }
+  const [[existing]] = await pool.query('SELECT image_url FROM categories WHERE id = ?', [req.params.id]);
+  if (!existing) throw new ApiError(404, 'Category not found.');
+
   const [result] = await pool.query('DELETE FROM categories WHERE id = ?', [req.params.id]);
   if (!result.affectedRows) throw new ApiError(404, 'Category not found.');
   res.status(204).send();
+
+  if (existing.image_url) deleteMediaByUrl(existing.image_url).catch(() => {});
 });

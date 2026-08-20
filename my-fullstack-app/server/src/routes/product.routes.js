@@ -17,7 +17,7 @@ router.post(
   publicWriteLimiter,
   requireAuth,
   uploadReviewImage.single('reviewImage'),
-  processImages('reviews', 1000),
+  processImages(1000),
   productController.reviewValidators,
   productController.createReview
 );

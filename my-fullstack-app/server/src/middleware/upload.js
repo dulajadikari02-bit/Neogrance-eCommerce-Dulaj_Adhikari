@@ -1,9 +1,9 @@
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
-import fs from 'fs';
 import sharp from 'sharp';
 import { ApiError } from '../utils/catchAsync.js';
+import { saveMedia } from '../utils/media.js';
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
 
@@ -38,26 +38,24 @@ export const uploadHeroBannerImage = memoryUpload;
 export const uploadReviewImage = memoryUpload;
 
 // Resizes + compresses every image file multer just parsed into memory, then
-// writes the result into uploads/<subfolder> — and sets file.filename on each
-// one so controllers can keep reading req.file.filename / req.files.X[0].filename
-// exactly as before, unaware that any processing happened.
-export function processImages(subfolder, maxWidth) {
+// saves the result as a row in the "media" table (see utils/media.js) instead
+// of writing it to disk — Hostinger gives each deploy a fresh, separate
+// folder, so a file only saved to local disk is gone on the next redeploy.
+// Sets file.url on each file (e.g. "/media/42") for controllers to store.
+export function processImages(maxWidth) {
   return async function processImagesMiddleware(req, res, next) {
     try {
       const files = req.file ? [req.file] : Object.values(req.files || {}).flat();
       if (!files.length) return next();
 
-      const dir = path.join(process.cwd(), 'uploads', subfolder);
-      fs.mkdirSync(dir, { recursive: true });
-
       for (const file of files) {
-        const filename = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}.jpg`;
-        await sharp(file.buffer)
+        const buffer = await sharp(file.buffer)
           // Never upscale a smaller image — only shrinks ones bigger than this.
           .resize({ width: maxWidth, withoutEnlargement: true })
           .jpeg({ quality: 80 })
-          .toFile(path.join(dir, filename));
-        file.filename = filename;
+          .toBuffer();
+        const id = await saveMedia(buffer, 'image/jpeg');
+        file.url = `/media/${id}`;
       }
       next();
     } catch (err) {

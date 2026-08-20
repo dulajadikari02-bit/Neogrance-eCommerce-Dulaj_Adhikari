@@ -2,6 +2,7 @@ import { body } from 'express-validator';
 import { pool } from '../config/db.js';
 import { catchAsync, ApiError } from '../utils/catchAsync.js';
 import { checkValidation } from '../utils/validate.js';
+import { deleteMediaByUrl } from '../utils/media.js';
 
 const mapHeroBanner = (b) => ({
   id: b.id,
@@ -43,7 +44,7 @@ export const updateHeroBanner = catchAsync(async (req, res) => {
   // off would fail to find the existing row and insert a duplicate instead.
   const [rows] = await pool.query('SELECT * FROM hero_banner ORDER BY updated_at DESC LIMIT 1');
   const existing = rows[0];
-  const imageUrl = req.file ? `/uploads/hero/${req.file.filename}` : (req.body.imageUrl || existing?.image_url || null);
+  const imageUrl = req.file ? req.file.url : (req.body.imageUrl || existing?.image_url || null);
   const isActive = req.body.isActive === undefined
     ? (existing ? existing.is_active : 1)
     : (req.body.isActive === 'true' || req.body.isActive === true ? 1 : 0);
@@ -63,4 +64,8 @@ export const updateHeroBanner = catchAsync(async (req, res) => {
 
   const [updated] = await pool.query('SELECT * FROM hero_banner ORDER BY updated_at DESC LIMIT 1');
   res.json({ heroBanner: mapHeroBanner(updated[0]) });
+
+  if (req.file && existing?.image_url && existing.image_url !== imageUrl) {
+    deleteMediaByUrl(existing.image_url).catch(() => {});
+  }
 });

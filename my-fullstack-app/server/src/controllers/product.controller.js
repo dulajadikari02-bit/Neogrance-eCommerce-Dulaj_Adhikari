@@ -4,6 +4,7 @@ import { catchAsync, ApiError } from '../utils/catchAsync.js';
 import { checkValidation } from '../utils/validate.js';
 import { sendPushToAdmins } from '../utils/push.js';
 import { mapProduct, mapAdminProduct, PRODUCT_BASE_SELECT as BASE_SELECT } from '../utils/productMapper.js';
+import { deleteMediaByUrl } from '../utils/media.js';
 
 function slugify(text) {
   return text
@@ -139,7 +140,7 @@ export const createReview = catchAsync(async (req, res) => {
   if (!user) throw new ApiError(401, 'Session is no longer valid.');
 
   const { rating, reviewText } = req.body;
-  const imageUrl = req.file ? `/uploads/reviews/${req.file.filename}` : null;
+  const imageUrl = req.file ? req.file.url : null;
   await pool.query(
     `INSERT INTO reviews (product_id, user_id, reviewer_name, rating, review_text, image_url, status)
      VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
@@ -283,10 +284,10 @@ export const createProduct = catchAsync(async (req, res) => {
   const hoverFile = files.hoverImage?.[0];
   const galleryFile = files.galleryImage?.[0];
 
-  const imageUrl = mainFile ? `/uploads/products/${mainFile.filename}` : req.body.imageUrl;
+  const imageUrl = mainFile ? mainFile.url : req.body.imageUrl;
   if (!imageUrl) throw new ApiError(400, 'A main product image is required.');
-  const hoverImageUrl = hoverFile ? `/uploads/products/${hoverFile.filename}` : imageUrl;
-  const image3Url = galleryFile ? `/uploads/products/${galleryFile.filename}` : null;
+  const hoverImageUrl = hoverFile ? hoverFile.url : imageUrl;
+  const image3Url = galleryFile ? galleryFile.url : null;
 
   const conn = await pool.getConnection();
   try {
@@ -327,9 +328,9 @@ export const updateProduct = catchAsync(async (req, res) => {
   const hoverFile = files.hoverImage?.[0];
   const galleryFile = files.galleryImage?.[0];
 
-  const imageUrl = mainFile ? `/uploads/products/${mainFile.filename}` : (req.body.imageUrl || existing.image_url);
-  const hoverImageUrl = hoverFile ? `/uploads/products/${hoverFile.filename}` : existing.hover_image_url;
-  const image3Url = galleryFile ? `/uploads/products/${galleryFile.filename}` : existing.image3_url;
+  const imageUrl = mainFile ? mainFile.url : (req.body.imageUrl || existing.image_url);
+  const hoverImageUrl = hoverFile ? hoverFile.url : existing.hover_image_url;
+  const image3Url = galleryFile ? galleryFile.url : existing.image3_url;
 
   const conn = await pool.getConnection();
   try {
@@ -363,6 +364,20 @@ export const updateProduct = catchAsync(async (req, res) => {
     await replaceVariants(conn, id, req.body.variants);
     await conn.commit();
     res.json({ message: 'Product updated.' });
+
+    // Clean up whichever old images just got replaced — but only once we're
+    // sure nothing else still points at them (e.g. the hover image often
+    // just reuses the main image's url, so don't delete that shared row).
+    const stillInUse = [imageUrl, hoverImageUrl, image3Url].filter(Boolean);
+    if (mainFile && existing.image_url && !stillInUse.includes(existing.image_url)) {
+      deleteMediaByUrl(existing.image_url).catch(() => {});
+    }
+    if (hoverFile && existing.hover_image_url && !stillInUse.includes(existing.hover_image_url)) {
+      deleteMediaByUrl(existing.hover_image_url).catch(() => {});
+    }
+    if (galleryFile && existing.image3_url && !stillInUse.includes(existing.image3_url)) {
+      deleteMediaByUrl(existing.image3_url).catch(() => {});
+    }
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -372,9 +387,20 @@ export const updateProduct = catchAsync(async (req, res) => {
 });
 
 export const deleteProduct = catchAsync(async (req, res) => {
+  const [[existing]] = await pool.query(
+    'SELECT image_url, hover_image_url, image3_url FROM products WHERE id = ?',
+    [req.params.id]
+  );
+  if (!existing) throw new ApiError(404, 'Product not found.');
+
   const [result] = await pool.query('DELETE FROM products WHERE id = ?', [req.params.id]);
   if (!result.affectedRows) throw new ApiError(404, 'Product not found.');
   res.status(204).send();
+
+  // Same image can be reused across slots (e.g. no hover image uploaded),
+  // so dedupe before deleting to avoid trying to delete an already-gone row.
+  const urls = new Set([existing.image_url, existing.hover_image_url, existing.image3_url].filter(Boolean));
+  for (const url of urls) deleteMediaByUrl(url).catch(() => {});
 });
 
 export const statusValidators = [
