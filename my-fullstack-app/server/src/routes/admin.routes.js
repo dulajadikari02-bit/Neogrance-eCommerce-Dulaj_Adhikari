@@ -16,6 +16,9 @@ router.use(requireAuth, requireStaffOrAdmin);
 
 // Dashboard — staff sees it too, but the controller omits revenue unless role is admin.
 router.get('/dashboard', adminController.dashboardSummary);
+
+// One-time cleanup tool — moves any remaining disk-based images into the database.
+router.post('/migrate-legacy-images', requireAdmin, adminController.migrateLegacyImages);
 router.get('/analytics/category-sales', requireAdmin, adminController.categorySalesAnalytics);
 router.get('/analytics/profit-trend', requireAdmin, adminController.profitTrend);
 

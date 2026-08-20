@@ -114,15 +114,15 @@ export default function Footer() {
             <ul className="space-y-4 text-sm font-light mb-6 flex flex-col md:items-start items-center">
               <li className="flex items-start gap-3">
                 <MapPin size={18} className="text-white/40 shrink-0 mt-0.5" />
-                <span>123 Luxury Avenue, Colombo 03</span>
+                <span>Kuliyapitiya</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone size={18} className="text-white/40 shrink-0" />
-                <span>+94 11 234 5678</span>
+                <span>+94 74 218 1258</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail size={18} className="text-white/40 shrink-0" />
-                <span>info@neogrance.com</span>
+                <span>neo@neogrance.com</span>
               </li>
             </ul>
 

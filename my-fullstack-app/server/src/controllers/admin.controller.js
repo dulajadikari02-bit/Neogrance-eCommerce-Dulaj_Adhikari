@@ -1,8 +1,11 @@
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
 import { body, query } from 'express-validator';
 import { pool } from '../config/db.js';
 import { catchAsync, ApiError } from '../utils/catchAsync.js';
 import { checkValidation } from '../utils/validate.js';
+import { saveMedia } from '../utils/media.js';
 
 // ---------------------------------------------------------------------------
 // Push notification device tokens
@@ -23,6 +26,51 @@ export const unregisterPushToken = catchAsync(async (req, res) => {
   if (!token) throw new ApiError(400, 'A push token is required.');
   await pool.query('DELETE FROM push_tokens WHERE token = ?', [token]);
   res.status(204).send();
+});
+
+// ---------------------------------------------------------------------------
+// One-time cleanup: move any images still saved on local disk (from before
+// uploads were switched to database storage) into the media table, so they
+// stop being at risk of disappearing on the next redeploy. Safe to run more
+// than once — anything already using a /media/ url is simply skipped.
+// ---------------------------------------------------------------------------
+
+async function migrateColumn(table, idColumn, urlColumn) {
+  const [rows] = await pool.query(
+    `SELECT ${idColumn} AS id, ${urlColumn} AS url FROM ${table} WHERE ${urlColumn} LIKE '/uploads/%'`
+  );
+  let migrated = 0;
+  let missing = 0;
+  for (const row of rows) {
+    const filePath = path.join(process.cwd(), row.url.replace(/^\//, ''));
+    if (!fs.existsSync(filePath)) {
+      missing += 1;
+      continue;
+    }
+    const buffer = fs.readFileSync(filePath);
+    const mediaId = await saveMedia(buffer, 'image/jpeg');
+    await pool.query(`UPDATE ${table} SET ${urlColumn} = ? WHERE ${idColumn} = ?`, [`/media/${mediaId}`, row.id]);
+    migrated += 1;
+  }
+  return { migrated, missing };
+}
+
+export const migrateLegacyImages = catchAsync(async (req, res) => {
+  const results = {
+    products_image: await migrateColumn('products', 'id', 'image_url'),
+    products_hover: await migrateColumn('products', 'id', 'hover_image_url'),
+    products_gallery: await migrateColumn('products', 'id', 'image3_url'),
+    categories: await migrateColumn('categories', 'id', 'image_url'),
+    promo_banner: await migrateColumn('promo_banner', 'id', 'image_url'),
+    hero_banner: await migrateColumn('hero_banner', 'id', 'image_url'),
+    reviews: await migrateColumn('reviews', 'id', 'image_url'),
+  };
+  const totalMigrated = Object.values(results).reduce((sum, r) => sum + r.migrated, 0);
+  const totalMissing = Object.values(results).reduce((sum, r) => sum + r.missing, 0);
+  res.json({
+    message: `Migrated ${totalMigrated} image(s) into the database.${totalMissing ? ` ${totalMissing} referenced file(s) were not found on disk.` : ''}`,
+    results,
+  });
 });
 
 // ---------------------------------------------------------------------------

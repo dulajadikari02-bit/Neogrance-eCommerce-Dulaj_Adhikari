@@ -308,11 +308,26 @@ function downloadCsv(filename, rows, columns) {
 function DashboardTab({ summary, categorySales, isSuperAdmin }) {
   const [granularity, setGranularity] = useState('month');
   const [profitTrend, setProfitTrend] = useState([]);
+  const [migrating, setMigrating] = useState(false);
+  const [migrateResult, setMigrateResult] = useState('');
 
   useEffect(() => {
     if (!isSuperAdmin) return;
     api.get('/admin/analytics/profit-trend', { params: { granularity } }).then(({ data }) => setProfitTrend(data.trend));
   }, [granularity, isSuperAdmin]);
+
+  const runMigration = async () => {
+    setMigrating(true);
+    setMigrateResult('');
+    try {
+      const { data } = await api.post('/admin/migrate-legacy-images');
+      setMigrateResult(data.message);
+    } catch (err) {
+      setMigrateResult(errorMessage(err));
+    } finally {
+      setMigrating(false);
+    }
+  };
 
   if (!summary) return null;
 
@@ -332,6 +347,25 @@ function DashboardTab({ summary, categorySales, isSuperAdmin }) {
 
   return (
     <div className="space-y-8">
+      {isSuperAdmin && (
+        <Card className="p-5 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+          <div>
+            <p className="text-xs text-white font-medium">Move old images into the database</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">One-time cleanup for photos still saved on disk from before uploads moved to the database. Safe to run more than once.</p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            {migrateResult && <span className="text-[11px] text-gray-400 max-w-xs">{migrateResult}</span>}
+            <button
+              onClick={runMigration}
+              disabled={migrating}
+              className="bg-white text-black font-konexy text-[10px] tracking-[2px] uppercase py-2.5 px-5 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 whitespace-nowrap"
+            >
+              {migrating ? 'Migrating...' : 'Migrate Legacy Images'}
+            </button>
+          </div>
+        </Card>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {tiles.map((t) => (
           <Card key={t.label} className="p-5 flex items-center justify-between">
