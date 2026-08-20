@@ -6,6 +6,7 @@ import { pool } from '../config/db.js';
 import { catchAsync, ApiError } from '../utils/catchAsync.js';
 import { checkValidation } from '../utils/validate.js';
 import { saveMedia } from '../utils/media.js';
+import { sendOrderStatusEmail } from '../utils/orderEmails.js';
 
 // ---------------------------------------------------------------------------
 // Push notification device tokens
@@ -126,6 +127,14 @@ export const updateOrderStatus = catchAsync(async (req, res) => {
   const [result] = await pool.query('UPDATE orders SET status = ? WHERE id = ?', [req.body.status, req.params.id]);
   if (!result.affectedRows) throw new ApiError(404, 'Order not found.');
   res.json({ message: 'Order status updated.' });
+
+  // Email the customer about the change — runs after the response is
+  // already sent, and a failed email (bad SMTP creds, etc.) shouldn't ever
+  // fail the status update itself, so any error here is just logged.
+  const [[order]] = await pool.query('SELECT id, email, first_name, status FROM orders WHERE id = ?', [req.params.id]);
+  if (order) {
+    sendOrderStatusEmail(order).catch((err) => console.error('Failed to send order status email:', err.message));
+  }
 });
 
 // ---------------------------------------------------------------------------
