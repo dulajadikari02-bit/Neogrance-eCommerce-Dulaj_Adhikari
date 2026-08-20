@@ -7,7 +7,7 @@ import * as heroBannerController from '../controllers/heroBanner.controller.js';
 import * as newsletterController from '../controllers/newsletter.controller.js';
 import * as contactController from '../controllers/contact.controller.js';
 import { requireAuth, requireAdmin, requireStaffOrAdmin } from '../middleware/auth.js';
-import { uploadProductImage, uploadProductImages, uploadBannerImage, uploadHeroBannerImage } from '../middleware/upload.js';
+import { uploadProductImage, uploadProductImages, uploadBannerImage, uploadHeroBannerImage, processImages } from '../middleware/upload.js';
 
 const router = Router();
 // Staff and SuperAdmin (role 'admin') both get into the admin panel; routes that are
@@ -30,16 +30,16 @@ router.get('/products/low-stock', productController.lowStockProducts);
 router.put('/products/bulk-stock', productController.bulkUpdateStockValidators, productController.bulkUpdateStock);
 router.put('/products/bulk-status', requireAdmin, productController.bulkUpdateStatusValidators, productController.bulkUpdateStatus);
 router.get('/products/:id', productController.adminGetProduct);
-router.post('/products', requireAdmin, uploadProductImages, productController.productValidators, productController.createProduct);
-router.put('/products/:id', requireAdmin, uploadProductImages, productController.productValidators, productController.updateProduct);
+router.post('/products', requireAdmin, uploadProductImages, processImages('products', 1200), productController.productValidators, productController.createProduct);
+router.put('/products/:id', requireAdmin, uploadProductImages, processImages('products', 1200), productController.productValidators, productController.updateProduct);
 router.put('/products/:id/status', requireAdmin, productController.statusValidators, productController.updateProductStatus);
 router.put('/products/:id/stock', productController.updateStockValidators, productController.updateStock);
 router.delete('/products/:id', requireAdmin, productController.deleteProduct);
 
 // Categories — SuperAdmin only (shapes the storefront's structure).
 router.get('/categories', requireAdmin, categoryController.listCategories);
-router.post('/categories', requireAdmin, uploadProductImage.single('image'), categoryController.categoryValidators, categoryController.createCategory);
-router.put('/categories/:id', requireAdmin, uploadProductImage.single('image'), categoryController.categoryValidators, categoryController.updateCategory);
+router.post('/categories', requireAdmin, uploadProductImage.single('image'), processImages('products', 1200), categoryController.categoryValidators, categoryController.createCategory);
+router.put('/categories/:id', requireAdmin, uploadProductImage.single('image'), processImages('products', 1200), categoryController.categoryValidators, categoryController.updateCategory);
 router.delete('/categories/:id', requireAdmin, categoryController.deleteCategory);
 
 // Reviews — SuperAdmin only.
@@ -49,11 +49,11 @@ router.put('/reviews/:id/reject', requireAdmin, adminController.rejectReview);
 
 // Promo banner — SuperAdmin only.
 router.get('/banner', requireAdmin, bannerController.adminGetBanner);
-router.put('/banner', requireAdmin, uploadBannerImage.single('image'), bannerController.bannerValidators, bannerController.updateBanner);
+router.put('/banner', requireAdmin, uploadBannerImage.single('image'), processImages('banner', 1920), bannerController.bannerValidators, bannerController.updateBanner);
 
 // Homepage hero banner (the big banner at the very top) — SuperAdmin only.
 router.get('/hero-banner', requireAdmin, heroBannerController.adminGetHeroBanner);
-router.put('/hero-banner', requireAdmin, uploadHeroBannerImage.single('image'), heroBannerController.heroBannerValidators, heroBannerController.updateHeroBanner);
+router.put('/hero-banner', requireAdmin, uploadHeroBannerImage.single('image'), processImages('hero', 1920), heroBannerController.heroBannerValidators, heroBannerController.updateHeroBanner);
 
 // Orders — staff's core duty: process orders.
 router.get('/orders', adminController.listOrders);

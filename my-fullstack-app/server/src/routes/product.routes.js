@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as productController from '../controllers/product.controller.js';
 import { requireAuth } from '../middleware/auth.js';
-import { uploadReviewImage } from '../middleware/upload.js';
+import { uploadReviewImage, processImages } from '../middleware/upload.js';
 import { publicWriteLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
@@ -17,6 +17,7 @@ router.post(
   publicWriteLimiter,
   requireAuth,
   uploadReviewImage.single('reviewImage'),
+  processImages('reviews', 1000),
   productController.reviewValidators,
   productController.createReview
 );
