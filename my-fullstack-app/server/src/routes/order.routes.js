@@ -18,5 +18,6 @@ router.post(
 // without a limit here it's brute-forceable against a guessed/leaked email.
 router.post('/track', publicWriteLimiter, orderController.trackOrderValidators, orderController.trackOrder);
 router.get('/:id', attachUser, orderController.getOrder);
+router.get('/:id/invoice', attachUser, orderController.getInvoice);
 
 export default router;

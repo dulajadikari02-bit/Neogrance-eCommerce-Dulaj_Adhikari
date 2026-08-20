@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronRight, Copy, CheckCircle, UploadCloud, Truck, Landmark, FileText, Info, X } from 'lucide-react';
+import { ChevronRight, Copy, CheckCircle, UploadCloud, Truck, Landmark, FileText, Info, X, Download } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuthModal } from '../context/AuthModalContext';
 import { useAuth } from '../context/AuthProvider';
 import api, { errorMessage } from '../lib/api';
+import { downloadOrderInvoice } from '../lib/invoice';
 
 export default function CheckoutPage() {
   const { cartItems, subtotal, clearCart } = useCart();
@@ -146,16 +147,27 @@ export default function CheckoutPage() {
       <div className="min-h-screen pt-24 pb-24 w-full text-white flex flex-col items-center justify-center text-center px-4">
         <CheckCircle size={48} className="text-white mb-6" />
         <h1 className="font-konexy text-2xl tracking-[4px] uppercase mb-3">Order Placed</h1>
-        <p className="text-white text-sm mb-2">Order #{placedOrder.orderId} — Total Rs. {placedOrder.total.toLocaleString()}</p>
+        <p className="text-white text-sm mb-2">Total Rs. {placedOrder.total.toLocaleString()}</p>
         <p className="text-white/40 text-xs tracking-widest uppercase mb-10">
           {paymentMethod === 'bank' ? 'Awaiting admin approval of your payment slip.' : "We'll contact you to confirm delivery."}
         </p>
-        <button
-          onClick={() => navigate('/')}
-          className="bg-white text-black font-konexy text-[11px] tracking-[3px] uppercase py-3.5 px-10 rounded-lg hover:bg-gray-200 transition-all"
-        >
-          Continue Shopping
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => downloadOrderInvoice(placedOrder.orderId)}
+            className="flex items-center justify-center gap-2 border border-white/30 text-white font-konexy text-[11px] tracking-[3px] uppercase py-3.5 px-10 rounded-lg hover:bg-white hover:text-black transition-all"
+          >
+            <Download size={15} /> Download Invoice
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="bg-white text-black font-konexy text-[11px] tracking-[3px] uppercase py-3.5 px-10 rounded-lg hover:bg-gray-200 transition-all"
+          >
+            Continue Shopping
+          </button>
+        </div>
+        <p className="text-white/30 text-[10px] tracking-widest uppercase mt-6 max-w-xs">
+          Keep your invoice — it has the order ID you'll need to track this order later.
+        </p>
       </div>
     );
   }

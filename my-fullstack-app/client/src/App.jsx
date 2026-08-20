@@ -1,5 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 
 import Navbar from './componants/Navbar';
 import Footer from './componants/Footer';
@@ -20,9 +21,26 @@ import { WishlistProvider } from './context/WishlistContext';
 import { AuthModalProvider } from './context/AuthModalContext';
 import { AuthProvider } from './context/AuthProvider';
 
+// A small fade + rise used every time a storefront page changes, so
+// navigation feels smooth instead of the new page just snapping into place.
+function PageTransition({ children }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.28, ease: 'easeInOut' }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 // The regular storefront shell: background image, fixed navbar, footer.
 // Kept separate from the admin route, which owns its own full-screen layout.
 function StorefrontLayout() {
+  const location = useLocation();
+
   return (
     <div className="relative min-h-screen flex flex-col font-medium">
 
@@ -41,18 +59,22 @@ function StorefrontLayout() {
 
       {/* Main Content Routes */}
       <main className="flex-grow pt-[73px] md:pt-[117px]"> {/* Padding matches the navbar's actual height: mobile 73px (single row), md+ 117px (with the nav links row added) */}
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/mens" element={<Mens />} />
-          <Route path="/womens" element={<Womens />} />
-          <Route path="/unisex" element={<Unisex />} />
-          <Route path="/category/:slug" element={<CategoryPage />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/product/:id" element={<ProductDetails />} />
-          <Route path="/wishlist" element={<WishlistPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/track-order" element={<TrackOrderPage />} />
-        </Routes>
+        <AnimatePresence mode="wait">
+          <PageTransition key={location.pathname}>
+            <Routes location={location}>
+              <Route path="/" element={<Home />} />
+              <Route path="/mens" element={<Mens />} />
+              <Route path="/womens" element={<Womens />} />
+              <Route path="/unisex" element={<Unisex />} />
+              <Route path="/category/:slug" element={<CategoryPage />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/product/:id" element={<ProductDetails />} />
+              <Route path="/wishlist" element={<WishlistPage />} />
+              <Route path="/checkout" element={<CheckoutPage />} />
+              <Route path="/track-order" element={<TrackOrderPage />} />
+            </Routes>
+          </PageTransition>
+        </AnimatePresence>
       </main>
 
       {/* Global Footer */}

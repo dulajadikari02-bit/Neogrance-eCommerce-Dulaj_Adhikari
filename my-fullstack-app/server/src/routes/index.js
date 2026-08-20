@@ -6,6 +6,7 @@ import categoryRoutes from './category.routes.js';
 import orderRoutes from './order.routes.js';
 import newsletterRoutes from './newsletter.routes.js';
 import bannerRoutes from './banner.routes.js';
+import heroBannerRoutes from './heroBanner.routes.js';
 import contactRoutes from './contact.routes.js';
 import adminRoutes from './admin.routes.js';
 
@@ -18,6 +19,7 @@ router.use('/categories', categoryRoutes);
 router.use('/orders', orderRoutes);
 router.use('/newsletter', newsletterRoutes);
 router.use('/banner', bannerRoutes);
+router.use('/hero-banner', heroBannerRoutes);
 router.use('/contact', contactRoutes);
 router.use('/admin', adminRoutes);
 

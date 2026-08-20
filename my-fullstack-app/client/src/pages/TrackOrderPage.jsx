@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Search, Check, XCircle, PackageSearch } from 'lucide-react';
+import { ChevronRight, Search, Check, XCircle, PackageSearch, Download } from 'lucide-react';
 import api, { errorMessage } from '../lib/api';
+import { downloadOrderInvoice } from '../lib/invoice';
 
 const STEPS = [
   { key: 'pending', label: 'Pending' },
@@ -52,18 +53,17 @@ export default function TrackOrderPage() {
           Track Your Order
         </h1>
         <p className="text-gray-400 text-xs sm:text-sm font-light tracking-wide mb-12 text-center max-w-md">
-          Enter the order ID from your confirmation and the email you checked out with.
+          Enter the order ID from your invoice (e.g. neo_00042) and the email you checked out with.
         </p>
 
         <form onSubmit={handleSubmit} className="w-full flex flex-col sm:flex-row gap-3 mb-4">
           <input
             required
             type="text"
-            inputMode="numeric"
-            placeholder="Order ID (e.g. 1042)"
+            placeholder="Order ID (e.g. neo_00042)"
             value={orderId}
             onChange={(e) => setOrderId(e.target.value)}
-            className="w-full sm:w-40 bg-[#111] border border-gray-900 rounded-lg py-4 px-4 text-sm tracking-wide text-white placeholder-gray-600 focus:outline-none focus:border-white/40 transition-colors"
+            className="w-full sm:w-48 bg-[#111] border border-gray-900 rounded-lg py-4 px-4 text-sm tracking-wide text-white placeholder-gray-600 focus:outline-none focus:border-white/40 transition-colors"
           />
           <input
             required
@@ -91,7 +91,7 @@ export default function TrackOrderPage() {
           <div className="w-full mt-8 p-6 sm:p-8 bg-black border border-gray-900 rounded-xl">
             <div className="flex flex-wrap items-baseline justify-between gap-2 mb-8">
               <h2 className="font-konexy text-sm tracking-[3px] uppercase text-white">
-                Order #{result.order.id}
+                Order Status
               </h2>
               <span className="text-xs text-gray-500 tracking-wide">
                 Placed {new Date(result.order.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
@@ -146,6 +146,13 @@ export default function TrackOrderPage() {
                 <span className="text-white font-medium">Rs. {Number(result.order.total).toLocaleString()}</span>
               </div>
             </div>
+
+            <button
+              onClick={() => downloadOrderInvoice(result.order.id)}
+              className="w-full mt-8 flex items-center justify-center gap-2 border border-gray-800 hover:border-white/40 text-gray-300 hover:text-white font-konexy text-[11px] tracking-[3px] uppercase py-3.5 rounded-lg transition-all"
+            >
+              <Download size={15} /> Download Invoice
+            </button>
           </div>
         )}
       </div>

@@ -1,8 +1,10 @@
 import { body } from 'express-validator';
+import PDFDocument from 'pdfkit';
 import { pool } from '../config/db.js';
 import { catchAsync, ApiError } from '../utils/catchAsync.js';
 import { checkValidation } from '../utils/validate.js';
 import { sendPushToAdmins } from '../utils/push.js';
+import { formatOrderId, parseOrderId } from '../utils/orderIdFormat.js';
 
 const SHIPPING_FEE = 400;
 
@@ -140,15 +142,18 @@ export const createOrder = catchAsync(async (req, res) => {
   }
 });
 
-export const getOrder = catchAsync(async (req, res) => {
-  const [[order]] = await pool.query('SELECT * FROM orders WHERE id = ?', [req.params.id]);
-  if (!order) throw new ApiError(404, 'Order not found.');
-
-  // Only the customer who placed this order (or an admin) is allowed to see it.
-  // Guest orders (no user_id) skip this check since anyone with the order ID could be the guest.
+// Only the customer who placed this order (or an admin) is allowed to see it.
+// Guest orders (no user_id) skip this check since anyone with the order ID could be the guest.
+function assertCanViewOrder(order, req) {
   const isOwner = req.user && order.user_id === req.user.id;
   const isAdmin = req.user && req.user.role === 'admin';
   if (order.user_id && !isOwner && !isAdmin) throw new ApiError(403, 'You cannot view this order.');
+}
+
+export const getOrder = catchAsync(async (req, res) => {
+  const [[order]] = await pool.query('SELECT * FROM orders WHERE id = ?', [req.params.id]);
+  if (!order) throw new ApiError(404, 'Order not found.');
+  assertCanViewOrder(order, req);
 
   // unit_cost is margin data — deliberately excluded here since this endpoint is customer/guest-facing.
   const [items] = await pool.query(
@@ -158,19 +163,101 @@ export const getOrder = catchAsync(async (req, res) => {
   res.json({ order, items });
 });
 
+// Generates a one-page PDF invoice and streams it straight to the response —
+// nothing is saved to disk. The invoice is the only place a customer ever
+// sees their order's public ID (formatted, e.g. "neo_00042").
+export const getInvoice = catchAsync(async (req, res) => {
+  const [[order]] = await pool.query('SELECT * FROM orders WHERE id = ?', [req.params.id]);
+  if (!order) throw new ApiError(404, 'Order not found.');
+  assertCanViewOrder(order, req);
+
+  const [items] = await pool.query(
+    'SELECT product_name, variant_name, unit_price, quantity, line_total FROM order_items WHERE order_id = ?',
+    [order.id]
+  );
+
+  const publicId = formatOrderId(order.id);
+  const doc = new PDFDocument({ size: 'A4', margin: 50 });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${publicId}-invoice.pdf"`);
+  doc.pipe(res);
+
+  // Header
+  doc.fontSize(20).font('Helvetica-Bold').text('NEOGRANCE', { align: 'left' });
+  doc.fontSize(10).font('Helvetica').fillColor('#555').text('Minimalist Luxury Fragrances', { align: 'left' });
+  doc.moveDown(1.5);
+
+  doc.fontSize(14).font('Helvetica-Bold').fillColor('#000').text('INVOICE');
+  doc.fontSize(10).font('Helvetica').fillColor('#333');
+  doc.text(`Order ID: ${publicId}`);
+  doc.text(`Date: ${new Date(order.created_at).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}`);
+  doc.text(`Payment Method: ${order.payment_method === 'bank_transfer' ? 'Bank Transfer' : 'Cash on Delivery'}`);
+  doc.moveDown(1);
+
+  doc.font('Helvetica-Bold').text('Billed To');
+  doc.font('Helvetica').text(`${order.first_name} ${order.last_name}`);
+  doc.text(order.email);
+  doc.text(order.phone);
+  doc.text(order.address1);
+  doc.text(`${order.city}, ${order.postal_code}`);
+  doc.moveDown(1.5);
+
+  // Line items table
+  const tableTop = doc.y;
+  const col = { name: 50, qty: 340, price: 400, total: 470 };
+  doc.font('Helvetica-Bold').fontSize(10);
+  doc.text('Item', col.name, tableTop);
+  doc.text('Qty', col.qty, tableTop);
+  doc.text('Price', col.price, tableTop);
+  doc.text('Total', col.total, tableTop);
+  doc.moveTo(50, tableTop + 15).lineTo(545, tableTop + 15).strokeColor('#ccc').stroke();
+
+  let y = tableTop + 22;
+  doc.font('Helvetica').fontSize(10);
+  for (const item of items) {
+    const label = item.variant_name ? `${item.product_name} (${item.variant_name})` : item.product_name;
+    doc.text(label, col.name, y, { width: 280 });
+    doc.text(String(item.quantity), col.qty, y);
+    doc.text(`Rs. ${Number(item.unit_price).toLocaleString()}`, col.price, y);
+    doc.text(`Rs. ${Number(item.line_total).toLocaleString()}`, col.total, y);
+    y += 20;
+  }
+
+  doc.moveTo(50, y + 4).lineTo(545, y + 4).strokeColor('#ccc').stroke();
+  y += 14;
+  doc.text('Subtotal', col.price, y);
+  doc.text(`Rs. ${Number(order.subtotal).toLocaleString()}`, col.total, y);
+  y += 16;
+  doc.text('Shipping', col.price, y);
+  doc.text(`Rs. ${Number(order.shipping_fee).toLocaleString()}`, col.total, y);
+  y += 16;
+  doc.font('Helvetica-Bold');
+  doc.text('Total', col.price, y);
+  doc.text(`Rs. ${Number(order.total).toLocaleString()}`, col.total, y);
+
+  doc.moveDown(4);
+  doc.font('Helvetica').fontSize(9).fillColor('#888').text('Thank you for shopping with Neogrance.', { align: 'center' });
+
+  doc.end();
+});
+
 // ---------------------------------------------------------------------------
 // Guest order tracking — no login required, order ID + email is the
 // knowledge factor that proves the requester placed the order.
 // ---------------------------------------------------------------------------
 
 export const trackOrderValidators = [
-  body('orderId').isInt({ min: 1 }).withMessage('A valid order ID is required.'),
+  // Customers type back the public code we gave them (e.g. "neo_00042"), not
+  // the raw database id — parseOrderId() turns that back into a real id.
+  body('orderId').custom((value) => parseOrderId(value) !== null).withMessage('A valid order ID is required.'),
   body('email').trim().isEmail().withMessage('A valid email is required.'),
 ];
 
 export const trackOrder = catchAsync(async (req, res) => {
   checkValidation(req);
-  const { orderId, email } = req.body;
+  const { email } = req.body;
+  const orderId = parseOrderId(req.body.orderId);
 
   const [[order]] = await pool.query('SELECT * FROM orders WHERE id = ? AND email = ?', [orderId, email]);
   if (!order) throw new ApiError(404, "No order found with that ID and email — double-check both and try again.");

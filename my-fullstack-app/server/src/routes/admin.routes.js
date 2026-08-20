@@ -3,10 +3,11 @@ import * as adminController from '../controllers/admin.controller.js';
 import * as productController from '../controllers/product.controller.js';
 import * as categoryController from '../controllers/category.controller.js';
 import * as bannerController from '../controllers/banner.controller.js';
+import * as heroBannerController from '../controllers/heroBanner.controller.js';
 import * as newsletterController from '../controllers/newsletter.controller.js';
 import * as contactController from '../controllers/contact.controller.js';
 import { requireAuth, requireAdmin, requireStaffOrAdmin } from '../middleware/auth.js';
-import { uploadProductImage, uploadProductImages, uploadBannerImage } from '../middleware/upload.js';
+import { uploadProductImage, uploadProductImages, uploadBannerImage, uploadHeroBannerImage } from '../middleware/upload.js';
 
 const router = Router();
 // Staff and SuperAdmin (role 'admin') both get into the admin panel; routes that are
@@ -49,6 +50,10 @@ router.put('/reviews/:id/reject', requireAdmin, adminController.rejectReview);
 // Promo banner — SuperAdmin only.
 router.get('/banner', requireAdmin, bannerController.adminGetBanner);
 router.put('/banner', requireAdmin, uploadBannerImage.single('image'), bannerController.bannerValidators, bannerController.updateBanner);
+
+// Homepage hero banner (the big banner at the very top) — SuperAdmin only.
+router.get('/hero-banner', requireAdmin, heroBannerController.adminGetHeroBanner);
+router.put('/hero-banner', requireAdmin, uploadHeroBannerImage.single('image'), heroBannerController.heroBannerValidators, heroBannerController.updateHeroBanner);
 
 // Orders — staff's core duty: process orders.
 router.get('/orders', adminController.listOrders);

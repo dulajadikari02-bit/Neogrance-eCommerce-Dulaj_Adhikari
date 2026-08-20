@@ -37,7 +37,7 @@ app.use(cookieParser());
 // Created up front — a fresh deploy from git won't have these (uploads/ is gitignored
 // aside from a couple .gitkeep'd folders), and multer's diskStorage does NOT create
 // missing destination directories itself; the first upload would crash with ENOENT.
-for (const dir of ['products', 'banner', 'slips', 'reviews']) {
+for (const dir of ['products', 'banner', 'hero', 'slips', 'reviews']) {
   fs.mkdirSync(path.join(process.cwd(), 'uploads', dir), { recursive: true });
 }
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));

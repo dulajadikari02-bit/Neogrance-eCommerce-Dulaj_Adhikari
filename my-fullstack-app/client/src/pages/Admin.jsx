@@ -9,6 +9,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../context/AuthProvider';
 import api, { errorMessage } from '../lib/api';
+import { formatOrderId } from '../lib/orderIdFormat';
 import logo from '../assets/logo.png';
 
 // superAdminOnly items are hidden from the nav entirely for Staff accounts —
@@ -36,6 +37,7 @@ const NAV_GROUPS = [
   {
     title: 'Marketing',
     items: [
+      { id: 'hero-banner', label: 'Hero Banner', icon: ImageIcon, superAdminOnly: true },
       { id: 'banner', label: 'Promo Banner', icon: ImageIcon, superAdminOnly: true },
       { id: 'reviews', label: 'Reviews', icon: Star, superAdminOnly: true },
       { id: 'newsletter', label: 'Newsletter', icon: Mail, superAdminOnly: true },
@@ -93,6 +95,7 @@ function AdminShell({ user, isSuperAdmin, onLogout }) {
   const [pendingReviews, setPendingReviews] = useState([]);
   const [subscribers, setSubscribers] = useState([]);
   const [banner, setBanner] = useState(null);
+  const [heroBanner, setHeroBanner] = useState(null);
   const [inquiries, setInquiries] = useState([]);
   const [staffAccounts, setStaffAccounts] = useState([]);
 
@@ -109,6 +112,7 @@ function AdminShell({ user, isSuperAdmin, onLogout }) {
   const loadReviews = () => api.get('/admin/reviews', { params: { status: 'pending' } }).then(({ data }) => setPendingReviews(data.reviews));
   const loadSubscribers = () => api.get('/admin/newsletter').then(({ data }) => setSubscribers(data.subscribers));
   const loadBanner = () => api.get('/admin/banner').then(({ data }) => setBanner(data.banner)).catch(() => setBanner(null));
+  const loadHeroBanner = () => api.get('/admin/hero-banner').then(({ data }) => setHeroBanner(data.heroBanner)).catch(() => setHeroBanner(null));
   const loadInquiries = () => api.get('/admin/contact-messages').then(({ data }) => setInquiries(data.messages));
   const loadStaffAccounts = () => api.get('/admin/staff').then(({ data }) => setStaffAccounts(data.staff));
 
@@ -124,6 +128,7 @@ function AdminShell({ user, isSuperAdmin, onLogout }) {
     loadReviews();
     loadSubscribers();
     loadBanner();
+    loadHeroBanner();
     loadInquiries();
     loadStaffAccounts();
   }, []);
@@ -241,6 +246,7 @@ function AdminShell({ user, isSuperAdmin, onLogout }) {
           {activeTab === 'staff' && (
             <StaffTab staff={staffAccounts} reload={loadStaffAccounts} />
           )}
+          {activeTab === 'hero-banner' && <HeroBannerTab banner={heroBanner} reload={loadHeroBanner} />}
           {activeTab === 'banner' && <BannerTab banner={banner} reload={loadBanner} />}
           {activeTab === 'reviews' && (
             <ReviewsTab reviews={pendingReviews} reload={() => { loadReviews(); loadDashboard(); }} />
@@ -1062,7 +1068,7 @@ function OrdersTab({ orders, reload }) {
           <tbody className="divide-y divide-gray-900">
             {visible.map((o) => (
               <tr key={o.id} className="hover:bg-white/5 transition-colors">
-                <td className="p-4 font-mono text-white font-medium">#{o.id}</td>
+                <td className="p-4 font-mono text-white font-medium">{formatOrderId(o.id)}</td>
                 <td className="p-4">
                   <div className="text-white font-medium">{o.first_name} {o.last_name}</div>
                   <div className="text-[10px] text-gray-600">{o.email}</div>
@@ -1114,7 +1120,7 @@ function DeliveredOrdersTab({ orders }) {
         <tbody className="divide-y divide-gray-900">
           {orders.map((o) => (
             <tr key={o.id} className="hover:bg-white/5 transition-colors opacity-80">
-              <td className="p-4 font-mono text-white font-medium">#{o.id}</td>
+              <td className="p-4 font-mono text-white font-medium">{formatOrderId(o.id)}</td>
               <td className="p-4">
                 <div className="text-white font-medium">{o.first_name} {o.last_name}</div>
                 <div className="text-[10px] text-gray-600">{o.email}</div>
@@ -1176,6 +1182,94 @@ function CustomersTab({ customers }) {
 // =============================================================================
 // 8. Promo Banner
 // =============================================================================
+
+function HeroBannerTab({ banner, reload }) {
+  const [form, setForm] = useState({ title: '', subtitle: '', buttonText: '', buttonLink: '' });
+  const [isActive, setIsActive] = useState(true);
+  const [imageFile, setImageFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (banner) {
+      setForm({
+        title: banner.title || '', subtitle: banner.subtitle || '',
+        buttonText: banner.buttonText || '', buttonLink: banner.buttonLink || '',
+      });
+      setIsActive(banner.isActive);
+      setPreview(banner.image);
+    }
+  }, [banner]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      const payload = new FormData();
+      Object.entries(form).forEach(([key, value]) => payload.append(key, value));
+      payload.append('isActive', String(isActive));
+      if (imageFile) payload.append('image', imageFile);
+      await api.put('/admin/hero-banner', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
+      reload();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card className="max-w-2xl p-8">
+      <SectionTitle icon={ImageIcon}>Homepage Hero Banner</SectionTitle>
+      <p className="text-[11px] text-gray-500 mb-4 -mt-2">The big full-screen banner at the very top of the homepage. Leave title/subtitle empty to show just the image.</p>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <label className="flex items-center gap-3 bg-black border border-gray-900 rounded-lg px-4 py-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isActive}
+            onChange={(e) => setIsActive(e.target.checked)}
+            className="accent-white"
+          />
+          <span className="text-xs text-white flex-1">Show custom hero on homepage</span>
+          <span className={`text-[9px] uppercase tracking-widest px-2 py-1 rounded-sm font-bold ${isActive ? 'text-emerald-500 bg-emerald-500/10' : 'text-gray-500 bg-white/5'}`}>
+            {isActive ? 'Active' : 'Hidden'}
+          </span>
+        </label>
+        <div>
+          <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1.5">Title</label>
+          <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={inputCls} />
+        </div>
+        <div>
+          <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1.5">Subtitle</label>
+          <input value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} className={inputCls} />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1.5">Button Text</label>
+            <input value={form.buttonText} onChange={(e) => setForm({ ...form, buttonText: e.target.value })} className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1.5">Button Link</label>
+            <input value={form.buttonLink} onChange={(e) => setForm({ ...form, buttonLink: e.target.value })} className={inputCls} />
+          </div>
+        </div>
+        <div>
+          <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Hero Image</label>
+          <div className="relative h-40 border border-dashed border-gray-800 hover:border-white/40 rounded-lg overflow-hidden transition-colors">
+            <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer z-10" onChange={(e) => { const f = e.target.files[0]; if (f) { setImageFile(f); setPreview(URL.createObjectURL(f)); } }} />
+            {preview ? <img src={preview} alt="Hero" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-700"><Plus size={20} /></div>}
+          </div>
+        </div>
+        {error && <p className="text-[11px] text-red-400">{error}</p>}
+        <button type="submit" disabled={saving} className="bg-white text-black font-konexy text-[11px] tracking-[3px] uppercase py-3 px-8 rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50">
+          {saving ? 'Saving...' : 'Save Hero Banner'}
+        </button>
+      </form>
+    </Card>
+  );
+}
 
 function BannerTab({ banner, reload }) {
   const [form, setForm] = useState({ title: '', subtitle: '', description: '', buttonText: '', buttonLink: '' });

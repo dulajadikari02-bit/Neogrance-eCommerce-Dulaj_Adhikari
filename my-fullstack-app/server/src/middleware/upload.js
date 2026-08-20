@@ -38,6 +38,7 @@ export const uploadProductImages = productUpload.fields([
   { name: 'galleryImage', maxCount: 1 },
 ]);
 export const uploadBannerImage = multer({ storage: makeStorage('banner'), fileFilter, limits });
+export const uploadHeroBannerImage = multer({ storage: makeStorage('hero'), fileFilter, limits });
 
 // Checkout bank-transfer payment slip — allow images or a PDF receipt.
 const slipStorage = multer.diskStorage({

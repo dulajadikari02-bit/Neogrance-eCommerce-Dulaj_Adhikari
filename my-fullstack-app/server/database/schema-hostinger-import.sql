@@ -1,14 +1,3 @@
-﻿-- ============================================================================
--- Neogrance â€” full database setup (run this once)
---   mysql -u root -p < database/schema.sql
--- Creates the database, every table, and seed data (categories, sample
--- products + variants, one admin user, one promo banner row).
--- ============================================================================
-
-CREATE DATABASE IF NOT EXISTS neogrance
-  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-USE neogrance;
 
 -- ----------------------------------------------------------------------------
 -- users

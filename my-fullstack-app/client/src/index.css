@@ -12,3 +12,22 @@
 @theme {
   --font-konexy: "Konexy", sans-serif;
 }
+
+/* 3. Browsers show a text "I-beam" cursor over any plain text by default —
+   that's normal, but on this site it looked like text was editable when it
+   wasn't. Force a normal pointer everywhere, and let real inputs/links opt
+   back into their own cursor. */
+body {
+  cursor: default;
+}
+input,
+textarea {
+  cursor: text;
+}
+a,
+button,
+select,
+label,
+[role='button'] {
+  cursor: pointer;
+}

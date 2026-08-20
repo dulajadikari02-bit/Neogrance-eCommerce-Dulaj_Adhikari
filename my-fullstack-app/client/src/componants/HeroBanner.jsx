@@ -1,9 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import Banner from '../assets/neogranceecov.jpg';
+import { Link } from 'react-router-dom';
+import defaultBanner from '../assets/neogranceecov.jpg';
+import api from '../lib/api';
 
 const HeroBanner = () => {
-  //photo link
-  const bgImage = Banner;
+  const [hero, setHero] = useState(null);
+
+  // If nothing's been set up in the admin dashboard yet, this stays null and
+  // we just fall back to the original default image with no text — so the
+  // homepage never looks broken before someone fills the banner in.
+  useEffect(() => {
+    api
+      .get('/hero-banner')
+      .then(({ data }) => setHero(data.heroBanner))
+      .catch(() => setHero(null));
+  }, []);
+
+  const bgImage = hero?.image || defaultBanner;
 
   // Small entrance on first paint — background settles in from a slight
   // zoom while the content fades up a beat behind it.
@@ -31,29 +44,28 @@ const HeroBanner = () => {
           loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
         }`}
       >
-        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 leading-tight">
+        {hero?.title && (
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 leading-tight">
+            {hero.title}
+          </h1>
+        )}
 
-        </h1>
+        {hero?.subtitle && (
+          <p className="text-lg md:text-xl max-w-2xl mx-auto mb-8 text-gray-200">
+            {hero.subtitle}
+          </p>
+        )}
 
-        <p className="text-lg md:text-xl max-w-2xl mx-auto mb-8 text-gray-200">
-
-        </p>
-
-        {/*<div className="flex justify-center gap-4">
-          <a
-            href="#explore"
-            className="bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:bg-blue-700 transition"
-          >
-            Explore Now
-          </a>
-          <a
-            href="#learn"
-            className="border border-white text-white font-semibold px-6 py-3 rounded-lg hover:bg-white hover:text-gray-900 transition"
-          >
-            Learn More
-          </a>
-        </div>*/}
-
+        {hero?.buttonText && (
+          <div className="flex justify-center gap-4">
+            <Link
+              to={hero.buttonLink || '/'}
+              className="bg-white text-black font-semibold px-6 py-3 rounded-lg shadow-lg hover:bg-gray-200 transition"
+            >
+              {hero.buttonText}
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
