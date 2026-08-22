@@ -44,23 +44,31 @@ const HeroBanner = () => {
       />
 
       {/* Just the brand mark over the image — no title/subtitle/button text. */}
-      <div
-        className={`relative z-10 w-full h-full flex items-center justify-center transition-all duration-[1200ms] ease-out delay-300 ${
-          loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
-        }`}
-      >
+      <div className="relative z-10 w-full h-full flex items-center justify-center">
         {/* A soft blur of the photo behind the logo only — not the whole banner —
             so the logo stays easy to read without flattening the rest of the image.
             The radial mask fades the blur out at the edges instead of cutting it
-            off in a hard circle. */}
+            off in a hard circle. Given its own opacity transition (rather than
+            just inheriting a parent's) because backdrop-blur doesn't reliably
+            fade in smoothly with an ancestor's opacity in every browser — left
+            that way, it used to just snap in at full strength instead of
+            easing in with the logo. */}
         <div
-          className="absolute w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full backdrop-blur-xl"
+          className={`absolute w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full backdrop-blur-xl transition-opacity duration-[1800ms] ease-out delay-300 ${
+            loaded ? 'opacity-100' : 'opacity-0'
+          }`}
           style={{
             WebkitMaskImage: 'radial-gradient(circle, black 40%, transparent 72%)',
             maskImage: 'radial-gradient(circle, black 40%, transparent 72%)',
           }}
         />
-        <img src={logo} alt="Neogrance" className="relative w-40 sm:w-56 md:w-64 h-auto object-contain" />
+        <img
+          src={logo}
+          alt="Neogrance"
+          className={`relative w-40 sm:w-56 md:w-64 h-auto object-contain transition-all duration-[1200ms] ease-out delay-500 ${
+            loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+          }`}
+        />
       </div>
     </div>
   );
