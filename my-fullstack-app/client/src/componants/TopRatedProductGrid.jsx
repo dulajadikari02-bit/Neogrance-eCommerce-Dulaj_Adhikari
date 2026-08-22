@@ -134,9 +134,9 @@ export default function ProductGrid({ excludeId } = {}) {
             <button
               onClick={() => scrollByCard(-1)}
               aria-label="Scroll left"
-              className="hidden sm:flex absolute left-1 top-1/2 -translate-y-1/2 z-20 items-center justify-center w-11 h-11 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white/50 hover:text-white hover:border-white/40 transition-all duration-300"
+              className="hidden sm:flex absolute left-1 top-1/2 -translate-y-1/2 z-20 items-center justify-center text-white/40 hover:text-white transition-colors duration-300"
             >
-              <ChevronLeft size={26} />
+              <ChevronLeft size={32} strokeWidth={1.5} />
             </button>
           )}
 
@@ -171,9 +171,9 @@ export default function ProductGrid({ excludeId } = {}) {
             <button
               onClick={() => scrollByCard(1)}
               aria-label="Scroll right"
-              className="hidden sm:flex absolute right-1 top-1/2 -translate-y-1/2 z-20 items-center justify-center w-11 h-11 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white/50 hover:text-white hover:border-white/40 transition-all duration-300"
+              className="hidden sm:flex absolute right-1 top-1/2 -translate-y-1/2 z-20 items-center justify-center text-white/40 hover:text-white transition-colors duration-300"
             >
-              <ChevronRight size={26} />
+              <ChevronRight size={32} strokeWidth={1.5} />
             </button>
           )}
         </div>

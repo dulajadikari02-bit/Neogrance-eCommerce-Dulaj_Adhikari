@@ -49,7 +49,18 @@ const HeroBanner = () => {
           loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
         }`}
       >
-        <img src={logo} alt="Neogrance" className="w-40 sm:w-56 md:w-64 h-auto object-contain drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)]" />
+        {/* A soft blur of the photo behind the logo only — not the whole banner —
+            so the logo stays easy to read without flattening the rest of the image.
+            The radial mask fades the blur out at the edges instead of cutting it
+            off in a hard circle. */}
+        <div
+          className="absolute w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full backdrop-blur-xl"
+          style={{
+            WebkitMaskImage: 'radial-gradient(circle, black 40%, transparent 72%)',
+            maskImage: 'radial-gradient(circle, black 40%, transparent 72%)',
+          }}
+        />
+        <img src={logo} alt="Neogrance" className="relative w-40 sm:w-56 md:w-64 h-auto object-contain" />
       </div>
     </div>
   );
