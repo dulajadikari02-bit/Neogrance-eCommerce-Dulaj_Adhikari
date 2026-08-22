@@ -132,7 +132,7 @@ export default function NewArrivals() {
               aria-label="Scroll left"
               className="hidden sm:flex absolute left-1 top-1/2 -translate-y-1/2 z-20 items-center justify-center text-white/40 hover:text-white transition-colors duration-300"
             >
-              <ChevronLeft size={32} strokeWidth={1.5} />
+              <ChevronLeft size={48} strokeWidth={1.25} />
             </button>
           )}
 
@@ -168,7 +168,7 @@ export default function NewArrivals() {
               aria-label="Scroll right"
               className="hidden sm:flex absolute right-1 top-1/2 -translate-y-1/2 z-20 items-center justify-center text-white/40 hover:text-white transition-colors duration-300"
             >
-              <ChevronRight size={32} strokeWidth={1.5} />
+              <ChevronRight size={48} strokeWidth={1.25} />
             </button>
           )}
         </div>
