@@ -99,7 +99,7 @@ const Navbar = () => {
             </button>
             <div
               className={`overflow-hidden transition-all duration-500 ease-in-out flex items-center relative ${
-                isSearchOpen ? 'w-56 sm:w-64 ml-3 opacity-100' : 'w-0 opacity-0'
+                isSearchOpen ? 'w-[calc(100vw-7rem)] sm:w-64 ml-3 opacity-100' : 'w-0 opacity-0'
               }`}
             >
               <input

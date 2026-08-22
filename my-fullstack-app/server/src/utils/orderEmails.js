@@ -1,30 +1,5 @@
-import { sendMail } from './mailer.js';
+import { sendMail, emailLayout } from './mailer.js';
 import { formatOrderId } from './orderIdFormat.js';
-
-// Shared look for every order-related email — dark header band, uppercase
-// letter-spaced headings and a thin gold divider, echoing the site's own
-// minimalist black/white/gold storefront styling. Email clients can't load
-// the site's custom font, so this sticks to a plain, widely-supported stack.
-function emailLayout({ preheader, headline, bodyHtml }) {
-  return `
-    <div style="background:#f4f4f4; padding: 32px 16px; font-family: Arial, Helvetica, sans-serif;">
-      <span style="display:none; max-height:0; overflow:hidden;">${preheader || ''}</span>
-      <div style="max-width: 520px; margin: 0 auto; background:#ffffff; border-radius: 10px; overflow: hidden; border: 1px solid #eaeaea;">
-        <div style="background:#0a0a0a; padding: 28px 32px; text-align:center;">
-          <div style="color:#ffffff; font-size: 20px; letter-spacing: 5px; text-transform: uppercase; font-weight: bold;">Neogrance</div>
-          <div style="color:#b8975a; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; margin-top: 6px;">Minimalist Luxury Fragrances</div>
-        </div>
-        <div style="padding: 32px;">
-          <h1 style="font-size: 18px; letter-spacing: 1px; color: #111; margin: 0 0 16px;">${headline}</h1>
-          ${bodyHtml}
-        </div>
-        <div style="background:#fafafa; border-top:1px solid #eee; padding: 20px 32px; text-align:center;">
-          <p style="color:#999; font-size: 11px; letter-spacing: 0.5px; margin:0;">Thank you for shopping with Neogrance.</p>
-        </div>
-      </div>
-    </div>
-  `;
-}
 
 function orderIdRow(order) {
   return `<p style="font-size: 13px; color:#555; margin: 0 0 20px;">Order ID: <strong style="color:#111;">${formatOrderId(order.id)}</strong></p>`;

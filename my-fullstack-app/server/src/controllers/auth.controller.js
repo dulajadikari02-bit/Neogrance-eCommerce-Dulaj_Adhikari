@@ -6,6 +6,7 @@ import { pool } from '../config/db.js';
 import { catchAsync, ApiError } from '../utils/catchAsync.js';
 import { checkValidation } from '../utils/validate.js';
 import { signToken, cookieOptions, COOKIE_NAME } from '../utils/jwt.js';
+import { sendWelcomeEmail, sendPasswordResetEmail } from '../utils/accountEmails.js';
 
 const googleClient = process.env.GOOGLE_CLIENT_ID ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID) : null;
 
@@ -54,6 +55,8 @@ export const register = catchAsync(async (req, res) => {
   // Also returned in the body (not just the cookie) so native/mobile clients that can't
   // rely on browser cookies can store it themselves and send it as a Bearer token.
   res.status(201).json({ user: publicUser(user), token });
+
+  sendWelcomeEmail(user).catch((err) => console.error('Failed to send welcome email:', err.message));
 });
 
 export const login = catchAsync(async (req, res) => {
@@ -121,9 +124,67 @@ export const googleAuth = catchAsync(async (req, res) => {
     // email now belong to the new account too.
     await pool.query('UPDATE orders SET user_id = ? WHERE email = ? AND user_id IS NULL', [result.insertId, email]);
     user = { id: result.insertId, name: name || email.split('@')[0], email, phone: null, role: 'customer' };
+    sendWelcomeEmail(user).catch((err) => console.error('Failed to send welcome email:', err.message));
   }
 
   const token = signToken({ id: user.id, role: user.role });
   res.cookie(COOKIE_NAME, token, cookieOptions);
   res.json({ user: publicUser(user), token });
+});
+
+// ---------------------------------------------------------------------------
+// Forgot / reset password
+// ---------------------------------------------------------------------------
+
+export const forgotPasswordValidators = [
+  body('email').trim().isEmail().withMessage('A valid email is required.').normalizeEmail(),
+];
+
+export const forgotPassword = catchAsync(async (req, res) => {
+  checkValidation(req);
+  const { email } = req.body;
+
+  const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+  const user = rows[0];
+
+  // Always respond the same way whether or not the account exists — otherwise
+  // this endpoint could be used to check which emails have an account here.
+  if (user) {
+    const token = crypto.randomBytes(32).toString('hex');
+    // Only the hash is stored, same reasoning as passwords: if the database
+    // ever leaked, the raw tokens (usable directly from the email link)
+    // wouldn't be exposed along with it.
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await pool.query('UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?', [tokenHash, expiresAt, user.id]);
+    sendPasswordResetEmail(user, token).catch((err) => console.error('Failed to send password reset email:', err.message));
+  }
+
+  res.json({ message: "If an account exists for that email, we've sent a password reset link." });
+});
+
+export const resetPasswordValidators = [
+  body('email').trim().isEmail().withMessage('A valid email is required.').normalizeEmail(),
+  body('token').notEmpty().withMessage('Reset token is required.'),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters.'),
+];
+
+export const resetPassword = catchAsync(async (req, res) => {
+  checkValidation(req);
+  const { email, token, password } = req.body;
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+  const [rows] = await pool.query(
+    'SELECT * FROM users WHERE email = ? AND reset_token = ? AND reset_token_expires > NOW()',
+    [email, tokenHash]
+  );
+  const user = rows[0];
+  if (!user) throw new ApiError(400, 'This reset link is invalid or has expired. Please request a new one.');
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  await pool.query('UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?', [
+    passwordHash,
+    user.id,
+  ]);
+  res.json({ message: 'Your password has been reset. You can now log in.' });
 });

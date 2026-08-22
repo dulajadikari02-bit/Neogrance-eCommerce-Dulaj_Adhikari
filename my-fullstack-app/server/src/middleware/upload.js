@@ -15,7 +15,14 @@ function fileFilter(req, file, cb) {
   cb(null, true);
 }
 
-const limits = { fileSize: 5 * 1024 * 1024 }; // 5MB
+const limits = { fileSize: 5 * 1024 * 1024 }; // 5MB — for the payment slip, unrelated to photo uploads below.
+
+// Modern phones commonly produce 8-15MB photos straight out of the camera —
+// this needs to be generous enough to accept those raw uploads, since the
+// actual shrinking down to a small file happens afterward in processImages
+// (sharp compression), not here. This limit only guards against something
+// absurd (a 100MB+ file), not normal photo sizes.
+const imageLimits = { fileSize: 25 * 1024 * 1024 }; // 25MB
 
 // Image uploads (products, banners, reviews) go into memory first instead of
 // straight to disk — that lets the processImages middleware below shrink and
@@ -23,7 +30,7 @@ const limits = { fileSize: 5 * 1024 * 1024 }; // 5MB
 // Uploaded photos were previously saved exactly as the admin's phone/camera
 // produced them (often 1-2MB+ each), which is why the storefront was slow to
 // load images.
-const memoryUpload = multer({ storage: multer.memoryStorage(), fileFilter, limits });
+const memoryUpload = multer({ storage: multer.memoryStorage(), fileFilter, limits: imageLimits });
 
 export const uploadProductImage = memoryUpload;
 // Named fields (not a positional array) so admins can fill any subset of the 3 image slots

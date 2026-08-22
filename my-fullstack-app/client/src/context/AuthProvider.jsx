@@ -46,6 +46,17 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
+  // Both just relay to the server — neither changes local user state, since
+  // the user isn't logged in yet at either step of this flow.
+  const forgotPassword = async (email) => {
+    const { data } = await api.post('/auth/forgot-password', { email });
+    return data.message;
+  };
+  const resetPassword = async (email, token, password) => {
+    const { data } = await api.post('/auth/reset-password', { email, token, password });
+    return data.message;
+  };
+
   // Tell the server to end the session, then clear the user locally.
   const logout = async () => {
     await api.post('/auth/logout');
@@ -67,6 +78,8 @@ export function AuthProvider({ children }) {
         login,
         register,
         loginWithGoogle,
+        forgotPassword,
+        resetPassword,
         logout,
         refresh,
         updateUser,

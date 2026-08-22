@@ -2,6 +2,7 @@ import { body } from 'express-validator';
 import { pool } from '../config/db.js';
 import { catchAsync } from '../utils/catchAsync.js';
 import { checkValidation } from '../utils/validate.js';
+import { sendNewsletterWelcomeEmail } from '../utils/accountEmails.js';
 
 export const subscribeValidators = [
   body('email').trim().isEmail().withMessage('A valid email is required.').normalizeEmail(),
@@ -16,6 +17,8 @@ export const subscribe = catchAsync(async (req, res) => {
     [email]
   );
   res.status(201).json({ message: 'Subscribed! Thanks for joining us.' });
+
+  sendNewsletterWelcomeEmail(email).catch((err) => console.error('Failed to send newsletter welcome email:', err.message));
 });
 
 export const listSubscribers = catchAsync(async (req, res) => {

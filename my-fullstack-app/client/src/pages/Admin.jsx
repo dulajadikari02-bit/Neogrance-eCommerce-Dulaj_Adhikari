@@ -1218,7 +1218,6 @@ function CustomersTab({ customers }) {
 // =============================================================================
 
 function HeroBannerTab({ banner, reload }) {
-  const [form, setForm] = useState({ title: '', subtitle: '', buttonText: '', buttonLink: '' });
   const [isActive, setIsActive] = useState(true);
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -1227,10 +1226,6 @@ function HeroBannerTab({ banner, reload }) {
 
   useEffect(() => {
     if (banner) {
-      setForm({
-        title: banner.title || '', subtitle: banner.subtitle || '',
-        buttonText: banner.buttonText || '', buttonLink: banner.buttonLink || '',
-      });
       setIsActive(banner.isActive);
       setPreview(banner.image);
     }
@@ -1242,7 +1237,6 @@ function HeroBannerTab({ banner, reload }) {
     setError('');
     try {
       const payload = new FormData();
-      Object.entries(form).forEach(([key, value]) => payload.append(key, value));
       payload.append('isActive', String(isActive));
       if (imageFile) payload.append('image', imageFile);
       await api.put('/admin/hero-banner', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -1257,7 +1251,7 @@ function HeroBannerTab({ banner, reload }) {
   return (
     <Card className="max-w-2xl p-8">
       <SectionTitle icon={ImageIcon}>Homepage Hero Banner</SectionTitle>
-      <p className="text-[11px] text-gray-500 mb-4 -mt-2">The big full-screen banner at the very top of the homepage. Leave title/subtitle empty to show just the image.</p>
+      <p className="text-[11px] text-gray-500 mb-4 -mt-2">The big full-screen banner at the very top of the homepage — just an image, with the Neogrance logo shown over it. Swap the image any time.</p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="flex items-center gap-3 bg-black border border-gray-900 rounded-lg px-4 py-3 cursor-pointer">
           <input
@@ -1271,24 +1265,6 @@ function HeroBannerTab({ banner, reload }) {
             {isActive ? 'Active' : 'Hidden'}
           </span>
         </label>
-        <div>
-          <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1.5">Title</label>
-          <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={inputCls} />
-        </div>
-        <div>
-          <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1.5">Subtitle</label>
-          <input value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} className={inputCls} />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1.5">Button Text</label>
-            <input value={form.buttonText} onChange={(e) => setForm({ ...form, buttonText: e.target.value })} className={inputCls} />
-          </div>
-          <div>
-            <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1.5">Button Link</label>
-            <input value={form.buttonLink} onChange={(e) => setForm({ ...form, buttonLink: e.target.value })} className={inputCls} />
-          </div>
-        </div>
         <div>
           <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Hero Image</label>
           <div className="relative h-40 border border-dashed border-gray-800 hover:border-white/40 rounded-lg overflow-hidden transition-colors">

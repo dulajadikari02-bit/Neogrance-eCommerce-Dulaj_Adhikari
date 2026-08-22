@@ -16,6 +16,7 @@ import ProductDetails from './pages/ProductDetails';
 import WishlistPage from './pages/WishlistPage';
 import CheckoutPage from './pages/CheckoutPage';
 import TrackOrderPage from './pages/TrackOrderPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import Admin from './pages/Admin';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
@@ -73,6 +74,7 @@ function StorefrontLayout() {
               <Route path="/wishlist" element={<WishlistPage />} />
               <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/track-order" element={<TrackOrderPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Routes>
           </PageTransition>
         </AnimatePresence>

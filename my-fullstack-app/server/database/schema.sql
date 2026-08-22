@@ -14,14 +14,16 @@ USE neogrance;
 -- users
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
-  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  name          VARCHAR(120) NOT NULL,
-  email         VARCHAR(190) NOT NULL UNIQUE,
-  password_hash VARCHAR(255) NOT NULL,
-  phone         VARCHAR(30)  NULL,
-  role          ENUM('customer', 'staff', 'admin') NOT NULL DEFAULT 'customer',
-  created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name                VARCHAR(120) NOT NULL,
+  email               VARCHAR(190) NOT NULL UNIQUE,
+  password_hash       VARCHAR(255) NOT NULL,
+  phone               VARCHAR(30)  NULL,
+  role                ENUM('customer', 'staff', 'admin') NOT NULL DEFAULT 'customer',
+  reset_token         VARCHAR(64)  NULL,
+  reset_token_expires DATETIME     NULL,
+  created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
 -- ----------------------------------------------------------------------------
