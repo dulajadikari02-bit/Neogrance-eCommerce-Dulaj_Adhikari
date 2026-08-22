@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Star, Minus, Plus, ShoppingBag, ChevronRight, Heart, Camera, X as XIcon } from 'lucide-react';
 import api, { errorMessage } from '../lib/api';
 import TopRatedProductGrid from '../componants/TopRatedProductGrid';
@@ -91,6 +92,14 @@ export default function ProductDetail() {
   ];
   const activeVariant = sizeOptions[selectedVariant] || { price: product.price, name: null, id: null };
 
+  // Lets a finger-swipe on mobile move to the next/previous image, the same
+  // way clicking a side image already does on desktop.
+  const handleImageSwipe = (e, info) => {
+    const threshold = 50;
+    if (info.offset.x < -threshold) setActiveIndex((i) => (i + 1) % 3);
+    else if (info.offset.x > threshold) setActiveIndex((i) => (i + 2) % 3);
+  };
+
   const handleQuantity = (type) => {
     if (type === 'dec' && quantity > 1) setQuantity(quantity - 1);
     if (type === 'inc') setQuantity(quantity + 1);
@@ -146,7 +155,13 @@ export default function ProductDetail() {
         </div>
 
         {/* ================= 3D CAROUSEL IMAGE GALLERY ================= */}
-        <div className="relative w-full max-w-2xl h-[350px] sm:h-[450px] md:h-[500px] flex justify-center items-center mb-16">
+        <motion.div
+          className="relative w-full max-w-2xl h-[350px] sm:h-[450px] md:h-[500px] flex justify-center items-center mb-16 touch-pan-y"
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.15}
+          onDragEnd={handleImageSwipe}
+        >
           {displayImages.map((img, index) => (
             <div
               key={index}
@@ -161,7 +176,7 @@ export default function ProductDetail() {
               />
             </div>
           ))}
-        </div>
+        </motion.div>
 
         {/* ================= PRODUCT DETAILS (CENTERED) ================= */}
         <div className="w-full flex flex-col items-center text-center">

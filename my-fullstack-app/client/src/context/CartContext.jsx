@@ -84,7 +84,6 @@ export function CartProvider({ children }) {
   // just update local state (which gets mirrored to localStorage above).
   const addToCart = async (product, variant, quantity = 1) => {
     const key = `${product.id}-${variant?.id ?? 'none'}`;
-    setIsCartOpen(true);
 
     if (user) {
       try {

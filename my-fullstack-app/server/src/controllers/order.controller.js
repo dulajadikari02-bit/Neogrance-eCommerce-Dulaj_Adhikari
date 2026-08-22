@@ -5,6 +5,7 @@ import { catchAsync, ApiError } from '../utils/catchAsync.js';
 import { checkValidation } from '../utils/validate.js';
 import { sendPushToAdmins } from '../utils/push.js';
 import { formatOrderId, parseOrderId } from '../utils/orderIdFormat.js';
+import { sendOrderConfirmationEmail } from '../utils/orderEmails.js';
 
 const SHIPPING_FEE = 400;
 
@@ -134,6 +135,10 @@ export const createOrder = catchAsync(async (req, res) => {
     for (const p of newlyLowStock) {
       sendPushToAdmins('Low Stock Warning', `"${p.name}" is down to ${p.remainingStock} left in stock.`, { type: 'low_stock' });
     }
+
+    sendOrderConfirmationEmail({ id: orderId, firstName, email, paymentMethod, subtotal, shippingFee, total }, lineItems).catch((err) =>
+      console.error('Failed to send order confirmation email:', err.message)
+    );
   } catch (err) {
     await conn.rollback();
     throw err;

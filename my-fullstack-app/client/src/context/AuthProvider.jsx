@@ -38,6 +38,14 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
+  // Hands the ID token Google gave us to the server, which verifies it and
+  // logs us into the matching (or newly created) account.
+  const loginWithGoogle = async (credential) => {
+    const { data } = await api.post('/auth/google', { credential });
+    setUser(data.user);
+    return data.user;
+  };
+
   // Tell the server to end the session, then clear the user locally.
   const logout = async () => {
     await api.post('/auth/logout');
@@ -58,6 +66,7 @@ export function AuthProvider({ children }) {
         isStaffOrAdmin: user?.role === 'admin' || user?.role === 'staff',
         login,
         register,
+        loginWithGoogle,
         logout,
         refresh,
         updateUser,

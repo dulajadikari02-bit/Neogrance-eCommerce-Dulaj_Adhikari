@@ -1,8 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { X, User, LogOut, MapPin, Plus, Pencil, Trash2, Star, LayoutDashboard } from 'lucide-react';
+import { X, User, LogOut, MapPin, Plus, Pencil, Trash2, Star, LayoutDashboard, Download, PackageSearch } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 import api, { errorMessage } from '../lib/api';
+import { formatOrderId } from '../lib/orderIdFormat';
+import { downloadOrderInvoice } from '../lib/invoice';
+
+const ORDER_STATUS_STYLE = {
+  pending: 'text-gray-400',
+  processing: 'text-blue-400',
+  shipped: 'text-amber-400',
+  delivered: 'text-emerald-400',
+  cancelled: 'text-red-400',
+};
 
 const emptyAddress = {
   label: 'Home',
@@ -31,6 +41,9 @@ export default function ProfileDrawer({ isOpen, onClose }) {
   const [addressError, setAddressError] = useState('');
   const [savingAddress, setSavingAddress] = useState(false);
 
+  const [orders, setOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
   useEffect(() => {
     if (user) {
       setName(user.name || '');
@@ -40,7 +53,22 @@ export default function ProfileDrawer({ isOpen, onClose }) {
 
   useEffect(() => {
     if (isOpen && user) fetchAddresses();
+    if (isOpen && user) fetchOrders();
   }, [isOpen, user]);
+
+  // Get the user's past orders — includes any orders they placed as a guest
+  // before creating an account, once that account uses the same email.
+  const fetchOrders = async () => {
+    setLoadingOrders(true);
+    try {
+      const { data } = await api.get('/users/me/orders');
+      setOrders(data.orders);
+    } catch {
+      // ignore, list just stays empty
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
 
   // Get the user's saved delivery addresses from the server.
   const fetchAddresses = async () => {
@@ -284,6 +312,49 @@ export default function ProfileDrawer({ isOpen, onClose }) {
                 {!addresses.length && editingId === null && (
                   <p className="text-xs text-gray-500 tracking-wide py-2">No saved addresses yet.</p>
                 )}
+              </div>
+            )}
+          </section>
+
+          <div className="h-[1px] bg-white/10" />
+
+          {/* Order History */}
+          <section>
+            <h3 className="font-konexy text-[11px] tracking-[3px] uppercase text-gray-400 mb-4">Order History</h3>
+
+            {loadingOrders ? (
+              <p className="text-xs text-gray-500 tracking-widest uppercase py-4">Loading...</p>
+            ) : orders.length === 0 ? (
+              <div className="flex flex-col items-center text-center py-6 gap-2">
+                <PackageSearch size={22} className="text-white/20" />
+                <p className="text-xs text-gray-500 tracking-wide">No orders yet.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {orders.map((o) => (
+                  <div key={o.id} className="p-4 bg-black rounded-xl border border-white/10">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <span className="block text-xs font-mono text-white tracking-wide">{formatOrderId(o.id)}</span>
+                        <span className="block text-[10px] text-gray-500 mt-0.5">
+                          {new Date(o.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                      <span className={`text-[10px] uppercase tracking-widest font-medium ${ORDER_STATUS_STYLE[o.status] || 'text-gray-400'}`}>
+                        {o.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-sm text-white font-medium">Rs. {Number(o.total).toLocaleString()}</span>
+                      <button
+                        onClick={() => downloadOrderInvoice(o.id)}
+                        className="flex items-center gap-1.5 text-[10px] text-gray-400 hover:text-white uppercase tracking-widest transition-colors"
+                      >
+                        <Download size={12} /> Invoice
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </section>

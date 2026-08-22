@@ -27,7 +27,12 @@ const HeroBanner = () => {
   }, []);
 
   return (
-    <div className="relative w-full h-[100vh] overflow-hidden">
+    // The banner image is a wide landscape photo. On a tall, narrow phone
+    // screen, covering the full 100vh height forces the browser to stretch
+    // it well past its real resolution, which is what caused the zoomed-in,
+    // blurry look on mobile. Using a shorter height on small screens means
+    // there's less area to stretch to cover, so it stays sharp.
+    <div className="relative w-full h-[55vh] sm:h-[70vh] md:h-[100vh] overflow-hidden">
       <div
         className={`absolute inset-0 bg-cover bg-center transition-all duration-[1600ms] ease-out ${
           loaded ? 'opacity-100 scale-100' : 'opacity-0 scale-110'

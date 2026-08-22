@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 import Navbar from './componants/Navbar';
 import Footer from './componants/Footer';
@@ -86,21 +87,23 @@ function StorefrontLayout() {
 
 export default function App() {
   return (
-    <Router>
-      <ScrollManager />
-      {/* These providers wrap the whole app so any page can read auth, cart, and wishlist data */}
-      <AuthProvider>
-      <AuthModalProvider>
-      <CartProvider>
-      <WishlistProvider>
-        <Routes>
-          <Route path="/admin/*" element={<Admin />} />
-          <Route path="/*" element={<StorefrontLayout />} />
-        </Routes>
-      </WishlistProvider>
-      </CartProvider>
-      </AuthModalProvider>
-      </AuthProvider>
-    </Router>
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
+      <Router>
+        <ScrollManager />
+        {/* These providers wrap the whole app so any page can read auth, cart, and wishlist data */}
+        <AuthProvider>
+        <AuthModalProvider>
+        <CartProvider>
+        <WishlistProvider>
+          <Routes>
+            <Route path="/admin/*" element={<Admin />} />
+            <Route path="/*" element={<StorefrontLayout />} />
+          </Routes>
+        </WishlistProvider>
+        </CartProvider>
+        </AuthModalProvider>
+        </AuthProvider>
+      </Router>
+    </GoogleOAuthProvider>
   );
 }
