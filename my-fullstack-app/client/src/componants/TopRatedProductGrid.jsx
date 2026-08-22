@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import ProductCard from './ProductCard';
 import api from '../lib/api';
 
@@ -95,6 +96,17 @@ export default function ProductGrid({ excludeId } = {}) {
     console.log("Quick view clicked for:", product.name);
   };
 
+  // Slides the row over by exactly one card (+ the gap between cards) instead
+  // of an arbitrary distance, so each arrow click moves one product at a time.
+  const scrollByCard = (direction) => {
+    const container = scrollRef.current;
+    const firstCard = cardsRef.current[0];
+    if (!container || !firstCard) return;
+    const gap = parseFloat(getComputedStyle(container).columnGap || '0');
+    const cardWidth = firstCard.getBoundingClientRect().width + gap;
+    container.scrollBy({ left: direction * cardWidth, behavior: 'smooth' });
+  };
+
   if (loading) {
     return (
       <div className="w-full py-24 text-center text-xs tracking-[0.3em] uppercase text-gray-400">
@@ -117,40 +129,53 @@ export default function ProductGrid({ excludeId } = {}) {
         </div>
 
         {/* Horizontal Scroll Container */}
-        <div ref={scrollRef} className={`
-          flex overflow-x-auto overflow-y-hidden gap-4 sm:gap-6 lg:gap-8 py-8 px-2
-          snap-x snap-mandatory scroll-smooth
-          ${!isOverflowing ? 'justify-center' : ''}
-
-          [&::-webkit-scrollbar]:h-1.5
-        [&::-webkit-scrollbar-track]:bg-transparent
-        [&::-webkit-scrollbar-thumb]:bg-white/40
-        [&::-webkit-scrollbar-thumb]:rounded-full
-
-        hover:[&::-webkit-scrollbar-thumb]:bg-white/40
-        [&::-webkit-scrollbar-button]:bg-transparent
-        [scrollbar-width:thin]
-        [scrollbar-color:rgba(255,255,255,0.4)_transparent]
-        `}>
-          {products.map((product, index) => (
-            <div
-              key={product.id}
-              // Give the card a ref and a data attribute so the observer above can track it
-              ref={(el) => (cardsRef.current[index] = el)}
-              data-index={index}
-              className={`
-                flex-none w-[75%] sm:w-[45%] md:w-[32%] lg:w-[23%] xl:w-[19%] 2xl:w-[15%] snap-start
-                transform transition-all duration-700 ease-out
-                ${visibleCards.has(index) ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-16 scale-95'}
-              `}
+        <div className="relative">
+          {isOverflowing && (
+            <button
+              onClick={() => scrollByCard(-1)}
+              aria-label="Scroll left"
+              className="hidden sm:flex absolute left-1 top-1/2 -translate-y-1/2 z-20 items-center justify-center w-11 h-11 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white/50 hover:text-white hover:border-white/40 transition-all duration-300"
             >
-              <ProductCard
-                product={product}
-                onQuickView={handleQuickView}
-                badge="Top Rated"
-              />
-            </div>
-          ))}
+              <ChevronLeft size={26} />
+            </button>
+          )}
+
+          <div ref={scrollRef} className={`
+            flex overflow-x-auto overflow-y-hidden gap-4 sm:gap-6 lg:gap-8 py-8 px-2
+            snap-x snap-mandatory scroll-smooth
+            ${!isOverflowing ? 'justify-center' : ''}
+            [&::-webkit-scrollbar]:hidden [scrollbar-width:none]
+          `}>
+            {products.map((product, index) => (
+              <div
+                key={product.id}
+                // Give the card a ref and a data attribute so the observer above can track it
+                ref={(el) => (cardsRef.current[index] = el)}
+                data-index={index}
+                className={`
+                  flex-none w-[75%] sm:w-[45%] md:w-[32%] lg:w-[23%] xl:w-[19%] 2xl:w-[15%] snap-start
+                  transform transition-all duration-700 ease-out
+                  ${visibleCards.has(index) ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-16 scale-95'}
+                `}
+              >
+                <ProductCard
+                  product={product}
+                  onQuickView={handleQuickView}
+                  badge="Top Rated"
+                />
+              </div>
+            ))}
+          </div>
+
+          {isOverflowing && (
+            <button
+              onClick={() => scrollByCard(1)}
+              aria-label="Scroll right"
+              className="hidden sm:flex absolute right-1 top-1/2 -translate-y-1/2 z-20 items-center justify-center w-11 h-11 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white/50 hover:text-white hover:border-white/40 transition-all duration-300"
+            >
+              <ChevronRight size={26} />
+            </button>
+          )}
         </div>
 
       </div>
