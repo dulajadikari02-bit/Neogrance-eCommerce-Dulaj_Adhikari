@@ -6,7 +6,6 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import Navbar from './componants/Navbar';
 import Footer from './componants/Footer';
 import ScrollManager from './componants/ScrollManager';
-import WhatsAppButton from './componants/WhatsAppButton';
 import Home from './pages/Home';
 import Mens from './pages/Mens';
 import Womens from './pages/Womens';
@@ -83,8 +82,6 @@ function StorefrontLayout() {
 
       {/* Global Footer */}
       <Footer />
-
-      <WhatsAppButton />
 
     </div>
   );
