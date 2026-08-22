@@ -290,8 +290,8 @@ export default function CheckoutPage() {
                       <div className="flex justify-between items-center pb-3 border-b border-white/10">
                         <span className="text-xs text-gray-500 uppercase tracking-widest">Account Name</span>
                         <div className="flex items-center gap-3">
-                          <span className="text-sm font-medium">Neogrance (Pvt) Ltd</span>
-                          <button onClick={() => handleCopy('Neogrance (Pvt) Ltd', 'name')} className="text-gray-500 hover:text-white transition-colors">
+                          <span className="text-sm font-medium">E.A.T.N de Silva</span>
+                          <button onClick={() => handleCopy('E.A.T.N de Silva', 'name')} className="text-gray-500 hover:text-white transition-colors">
                             {copiedField === 'name' ? <CheckCircle size={16} className="text-green-500" /> : <Copy size={16} />}
                           </button>
                         </div>
@@ -300,8 +300,8 @@ export default function CheckoutPage() {
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-gray-500 uppercase tracking-widest">Account Number</span>
                         <div className="flex items-center gap-3">
-                          <span className="text-base font-medium text-white">12345678</span>
-                          <button onClick={() => handleCopy('12345678', 'number')} className="text-gray-500 hover:text-white transition-colors">
+                          <span className="text-base font-medium text-white">106002953679</span>
+                          <button onClick={() => handleCopy('106002953679', 'number')} className="text-gray-500 hover:text-white transition-colors">
                             {copiedField === 'number' ? <CheckCircle size={16} className="text-green-500" /> : <Copy size={16} />}
                           </button>
                         </div>
