@@ -36,7 +36,27 @@ export const unregisterPushToken = catchAsync(async (req, res) => {
 // than once — anything already using a /media/ url is simply skipped.
 // ---------------------------------------------------------------------------
 
-async function migrateColumn(table, idColumn, urlColumn) {
+// Every column this cleanup is allowed to touch — an explicit allow-list, not
+// something derived from caller input. table/idColumn/urlColumn get
+// interpolated into raw SQL below (identifiers can't be parameterized with
+// `?`), so this list is what keeps that interpolation from ever becoming a
+// SQL injection vector: migrateColumn refuses to run for anything not in it.
+const MIGRATABLE_COLUMNS = [
+  { key: 'products_image', table: 'products', idColumn: 'id', urlColumn: 'image_url' },
+  { key: 'products_hover', table: 'products', idColumn: 'id', urlColumn: 'hover_image_url' },
+  { key: 'products_gallery', table: 'products', idColumn: 'id', urlColumn: 'image3_url' },
+  { key: 'categories', table: 'categories', idColumn: 'id', urlColumn: 'image_url' },
+  { key: 'promo_banner', table: 'promo_banner', idColumn: 'id', urlColumn: 'image_url' },
+  { key: 'hero_banner', table: 'hero_banner', idColumn: 'id', urlColumn: 'image_url' },
+  { key: 'reviews', table: 'reviews', idColumn: 'id', urlColumn: 'image_url' },
+];
+
+async function migrateColumn({ table, idColumn, urlColumn }) {
+  const isAllowed = MIGRATABLE_COLUMNS.some(
+    (c) => c.table === table && c.idColumn === idColumn && c.urlColumn === urlColumn
+  );
+  if (!isAllowed) throw new Error(`migrateColumn: "${table}.${urlColumn}" is not in the allow-list.`);
+
   const [rows] = await pool.query(
     `SELECT ${idColumn} AS id, ${urlColumn} AS url FROM ${table} WHERE ${urlColumn} LIKE '/uploads/%'`
   );
@@ -57,15 +77,10 @@ async function migrateColumn(table, idColumn, urlColumn) {
 }
 
 export const migrateLegacyImages = catchAsync(async (req, res) => {
-  const results = {
-    products_image: await migrateColumn('products', 'id', 'image_url'),
-    products_hover: await migrateColumn('products', 'id', 'hover_image_url'),
-    products_gallery: await migrateColumn('products', 'id', 'image3_url'),
-    categories: await migrateColumn('categories', 'id', 'image_url'),
-    promo_banner: await migrateColumn('promo_banner', 'id', 'image_url'),
-    hero_banner: await migrateColumn('hero_banner', 'id', 'image_url'),
-    reviews: await migrateColumn('reviews', 'id', 'image_url'),
-  };
+  const results = {};
+  for (const column of MIGRATABLE_COLUMNS) {
+    results[column.key] = await migrateColumn(column);
+  }
   const totalMigrated = Object.values(results).reduce((sum, r) => sum + r.migrated, 0);
   const totalMissing = Object.values(results).reduce((sum, r) => sum + r.missing, 0);
   res.json({
@@ -109,6 +124,15 @@ export const rejectReview = catchAsync(async (req, res) => {
   res.json({ message: 'Review rejected.' });
 });
 
+// Lets a SuperAdmin pull a review that's already live on the storefront
+// (e.g. flagged after the fact) — separate from reject, which is only for
+// reviews still pending approval.
+export const deleteReview = catchAsync(async (req, res) => {
+  const [result] = await pool.query('DELETE FROM reviews WHERE id = ?', [req.params.id]);
+  if (!result.affectedRows) throw new ApiError(404, 'Review not found.');
+  res.status(204).send();
+});
+
 // ---------------------------------------------------------------------------
 // Orders
 // ---------------------------------------------------------------------------
@@ -116,6 +140,40 @@ export const rejectReview = catchAsync(async (req, res) => {
 export const listOrders = catchAsync(async (req, res) => {
   const [rows] = await pool.query('SELECT * FROM orders ORDER BY created_at DESC LIMIT 200');
   res.json({ orders: rows });
+});
+
+// Streams a bank-transfer payment slip to an authorized admin/staff viewer.
+// Not reachable without a valid staff/admin session (see admin.routes.js) —
+// slips used to be served as plain static files, which meant anyone with the
+// URL could view a customer's payment proof with no login at all.
+export const getOrderSlip = catchAsync(async (req, res) => {
+  const [[order]] = await pool.query('SELECT payment_slip_url FROM orders WHERE id = ?', [req.params.id]);
+  if (!order || !order.payment_slip_url) throw new ApiError(404, 'No payment slip for this order.');
+
+  // payment_slip_url is always "/uploads/slips/<filename>" (set by the server
+  // itself at checkout, never from user input) — path.basename() strips any
+  // directory components anyway, so this can never resolve outside the slips
+  // folder no matter what ends up in that column.
+  const filename = path.basename(order.payment_slip_url);
+  const filePath = path.join(process.cwd(), 'uploads', 'slips', filename);
+  if (!fs.existsSync(filePath)) throw new ApiError(404, 'Payment slip file not found.');
+
+  res.set('Cache-Control', 'private, no-store');
+  res.sendFile(filePath);
+});
+
+// Full detail for one order — the customer's contact/shipping info plus every
+// line item, for staff packing the order. Unlike the customer-facing getOrder
+// (order.controller.js), this has no ownership check: anyone in the admin
+// panel (staff or SuperAdmin) is already trusted to see any order.
+export const getOrderDetail = catchAsync(async (req, res) => {
+  const [[order]] = await pool.query('SELECT * FROM orders WHERE id = ?', [req.params.id]);
+  if (!order) throw new ApiError(404, 'Order not found.');
+  const [items] = await pool.query(
+    'SELECT id, product_id, product_name, variant_name, unit_price, quantity, line_total FROM order_items WHERE order_id = ?',
+    [order.id]
+  );
+  res.json({ order, items });
 });
 
 export const updateOrderStatusValidators = [
@@ -249,7 +307,17 @@ export const dashboardSummary = catchAsync(async (req, res) => {
     profitRow,
   ] = await Promise.all([
     pool.query("SELECT COUNT(*) AS pendingReviews FROM reviews WHERE status = 'pending'"),
-    pool.query('SELECT COUNT(*) AS lowStockCount FROM products WHERE is_active = 1 AND stock <= low_stock_threshold'),
+    // Counts a product once even if both it and one of its decants are low —
+    // this mirrors the "Low Stock Only" filter in the products list, so the
+    // dashboard tile and the filtered list always agree on the same number.
+    pool.query(`
+      SELECT COUNT(DISTINCT p.id) AS lowStockCount
+      FROM products p
+      WHERE p.is_active = 1 AND (
+        p.stock <= p.low_stock_threshold
+        OR EXISTS (SELECT 1 FROM product_variants v WHERE v.product_id = p.id AND v.stock <= p.low_stock_threshold)
+      )
+    `),
     pool.query('SELECT COUNT(*) AS subscriberCount FROM newsletter_subscribers WHERE is_active = 1'),
     pool.query("SELECT COUNT(*) AS orderCount FROM orders WHERE status = 'pending'"),
     pool.query('SELECT COUNT(*) AS productCount FROM products WHERE is_active = 1'),

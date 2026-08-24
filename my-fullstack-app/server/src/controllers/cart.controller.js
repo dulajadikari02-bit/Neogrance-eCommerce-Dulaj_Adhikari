@@ -117,6 +117,11 @@ export const mergeCartValidators = [
 
 export const mergeCart = catchAsync(async (req, res) => {
   checkValidation(req);
+  // The guest cart the customer just built becomes their account's cart —
+  // it replaces whatever was left over from a previous, never-checked-out
+  // session, rather than combining with it (which would resurrect old items
+  // the customer never asked to buy again).
+  await pool.query('DELETE FROM cart_items WHERE user_id = ?', [req.user.id]);
   for (const item of req.body.items) {
     const productId = Number(item.productId);
     const variantId = item.variantId ? Number(item.variantId) : null;

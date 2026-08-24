@@ -93,6 +93,10 @@ CREATE TABLE IF NOT EXISTS product_variants (
   label       VARCHAR(120) NULL,
   price       DECIMAL(10,2) NOT NULL,
   ml          INT UNSIGNED NULL,
+  -- Tracked separately from products.stock (which is full-bottle stock only) —
+  -- a decant is sold out on its own once this hits zero, independent of how
+  -- many full bottles remain.
+  stock       INT UNSIGNED NOT NULL DEFAULT 0,
   sort_order  INT UNSIGNED NOT NULL DEFAULT 0,
   CONSTRAINT fk_variants_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
   INDEX idx_variants_product (product_id)

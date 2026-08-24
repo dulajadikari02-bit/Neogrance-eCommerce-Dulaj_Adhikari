@@ -95,7 +95,7 @@ export const getProduct = catchAsync(async (req, res) => {
   product.view_count += 1;
 
   const [variants] = await pool.query(
-    'SELECT id, name, label, price, ml, sort_order FROM product_variants WHERE product_id = ? ORDER BY sort_order ASC',
+    'SELECT id, name, label, price, ml, stock, sort_order FROM product_variants WHERE product_id = ? ORDER BY sort_order ASC',
     [product.id]
   );
   const [reviews] = await pool.query(
@@ -115,7 +115,7 @@ export const getProduct = catchAsync(async (req, res) => {
 
   res.json({
     product: mapProduct(product),
-    variants: variants.map((v) => ({ id: v.id, name: v.name, label: v.label, price: Number(v.price), ml: v.ml })),
+    variants: variants.map((v) => ({ id: v.id, name: v.name, label: v.label, price: Number(v.price), ml: v.ml, stock: v.stock })),
     reviews,
     relatedProducts,
   });
@@ -182,19 +182,47 @@ export const adminListProducts = catchAsync(async (req, res) => {
     params.push(categoryId);
   }
   if (lowStockOnly === 'true') {
-    where.push('p.stock <= p.low_stock_threshold');
+    // Match if the full bottle itself is low, or any of its decants are — a
+    // product can look fine on the shelf but still have a decant running out.
+    where.push(`(
+      p.stock <= p.low_stock_threshold
+      OR EXISTS (SELECT 1 FROM product_variants v WHERE v.product_id = p.id AND v.stock <= p.low_stock_threshold)
+    )`);
   }
 
   const sql = `${BASE_SELECT} ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY p.created_at DESC`;
   const [rows] = await pool.query(sql, params);
-  res.json({ products: rows.map(mapAdminProduct) });
+
+  // One batched query for every variant in the result set instead of one per
+  // product, grouped back onto each row afterward — so the products list can
+  // show decant stock (and flag a low/sold-out decant) alongside the full bottle.
+  const productIds = rows.map((r) => r.id);
+  const variantsByProduct = new Map();
+  if (productIds.length) {
+    const [variantRows] = await pool.query(
+      `SELECT product_id, id, name, label, stock FROM product_variants
+       WHERE product_id IN (${productIds.map(() => '?').join(',')}) ORDER BY sort_order ASC`,
+      productIds
+    );
+    for (const v of variantRows) {
+      if (!variantsByProduct.has(v.product_id)) variantsByProduct.set(v.product_id, []);
+      variantsByProduct.get(v.product_id).push({ id: v.id, name: v.name, label: v.label, stock: v.stock });
+    }
+  }
+
+  res.json({
+    products: rows.map((row) => ({
+      ...mapAdminProduct(row),
+      variants: variantsByProduct.get(row.id) || [],
+    })),
+  });
 });
 
 export const adminGetProduct = catchAsync(async (req, res) => {
   const [rows] = await pool.query(`${BASE_SELECT} WHERE p.id = ?`, [req.params.id]);
   if (!rows.length) throw new ApiError(404, 'Product not found.');
   const [variants] = await pool.query(
-    'SELECT id, name, label, price, ml, sort_order FROM product_variants WHERE product_id = ? ORDER BY sort_order ASC',
+    'SELECT id, name, label, price, ml, stock, sort_order FROM product_variants WHERE product_id = ? ORDER BY sort_order ASC',
     [req.params.id]
   );
   res.json({ product: mapAdminProduct(rows[0]), variants: variants.map((v) => ({ ...v, price: Number(v.price) })) });
@@ -264,8 +292,8 @@ async function replaceVariants(conn, productId, variantsJson) {
     const v = variants[i];
     if (!v.name || v.price === undefined || v.price === '') continue;
     await conn.query(
-      'INSERT INTO product_variants (product_id, name, label, price, ml, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
-      [productId, v.name, v.label || null, Number(v.price), v.ml || null, i]
+      'INSERT INTO product_variants (product_id, name, label, price, ml, stock, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [productId, v.name, v.label || null, Number(v.price), v.ml || null, Number(v.stock) || 0, i]
     );
   }
 }

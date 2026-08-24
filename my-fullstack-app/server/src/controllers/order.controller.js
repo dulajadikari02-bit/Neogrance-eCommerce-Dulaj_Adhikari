@@ -1,3 +1,5 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { body } from 'express-validator';
 import PDFDocument from 'pdfkit';
 import { pool } from '../config/db.js';
@@ -5,9 +7,11 @@ import { catchAsync, ApiError } from '../utils/catchAsync.js';
 import { checkValidation } from '../utils/validate.js';
 import { sendPushToAdmins } from '../utils/push.js';
 import { formatOrderId, parseOrderId } from '../utils/orderIdFormat.js';
-import { sendOrderConfirmationEmail } from '../utils/orderEmails.js';
+import { sendOrderConfirmationEmail, sendNewOrderAdminEmail } from '../utils/orderEmails.js';
 
 const SHIPPING_FEE = 400;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const LOGO_PATH = path.join(__dirname, '..', '..', 'assets', 'logo.png');
 
 export const createOrderValidators = [
   body('firstName').trim().notEmpty().withMessage('First name is required.'),
@@ -55,9 +59,6 @@ export const createOrder = catchAsync(async (req, res) => {
       // customers checking out at the same moment can't both buy the last item in stock.
       const [[product]] = await conn.query('SELECT * FROM products WHERE id = ? FOR UPDATE', [item.productId]);
       if (!product || !product.is_active) throw new ApiError(400, `Product ${item.productId} is no longer available.`);
-      if (product.stock < quantity) {
-        throw new ApiError(400, `Only ${product.stock} left in stock for "${product.name}".`);
-      }
 
       let unitPrice = Number(product.price);
       let variantName = null;
@@ -65,12 +66,18 @@ export const createOrder = catchAsync(async (req, res) => {
       // product_variants rows get fully deleted/recreated on every product edit, so a
       // historical order can never safely re-derive cost from live product/variant data.
       let unitCost = product.cost_price != null ? Number(product.cost_price) : null;
+      let variant = null;
       if (item.variantId) {
-        const [[variant]] = await conn.query(
-          'SELECT * FROM product_variants WHERE id = ? AND product_id = ?',
+        // Decants carry their own stock, separate from the full bottle's — lock
+        // and check that instead of the product's own stock for this line item.
+        [[variant]] = await conn.query(
+          'SELECT * FROM product_variants WHERE id = ? AND product_id = ? FOR UPDATE',
           [item.variantId, product.id]
         );
         if (variant) {
+          if (variant.stock < quantity) {
+            throw new ApiError(400, `Only ${variant.stock} left in stock for "${product.name}" (${variant.name}).`);
+          }
           unitPrice = Number(variant.price);
           variantName = variant.name;
           unitCost = (variant.ml && product.cost_price != null && product.bottle_ml)
@@ -78,23 +85,30 @@ export const createOrder = catchAsync(async (req, res) => {
             : null;
         }
       }
+      if (!variant && product.stock < quantity) {
+        throw new ApiError(400, `Only ${product.stock} left in stock for "${product.name}".`);
+      }
 
       const lineTotal = unitPrice * quantity;
       subtotal += lineTotal;
       lineItems.push({ productId: product.id, productName: product.name, variantName, unitPrice, unitCost, quantity, lineTotal });
 
-      // If this order is what pushes stock at or below the low-stock threshold,
-      // remember it so we can send an admin alert after the order is saved.
-      const remainingStock = product.stock - quantity;
-      if (product.stock > product.low_stock_threshold && remainingStock <= product.low_stock_threshold) {
-        newlyLowStock.push({ name: product.name, remainingStock });
+      if (variant) {
+        await conn.query('UPDATE product_variants SET stock = stock - ? WHERE id = ?', [quantity, variant.id]);
+        await conn.query('UPDATE products SET sold_count = sold_count + ? WHERE id = ?', [quantity, product.id]);
+      } else {
+        // If this order is what pushes stock at or below the low-stock threshold,
+        // remember it so we can send an admin alert after the order is saved.
+        const remainingStock = product.stock - quantity;
+        if (product.stock > product.low_stock_threshold && remainingStock <= product.low_stock_threshold) {
+          newlyLowStock.push({ name: product.name, remainingStock });
+        }
+        await conn.query('UPDATE products SET stock = stock - ?, sold_count = sold_count + ? WHERE id = ?', [
+          quantity,
+          quantity,
+          product.id,
+        ]);
       }
-
-      await conn.query('UPDATE products SET stock = stock - ?, sold_count = sold_count + ? WHERE id = ?', [
-        quantity,
-        quantity,
-        product.id,
-      ]);
     }
 
     const shippingFee = SHIPPING_FEE;
@@ -139,6 +153,19 @@ export const createOrder = catchAsync(async (req, res) => {
     sendOrderConfirmationEmail({ id: orderId, firstName, email, paymentMethod, subtotal, shippingFee, total }, lineItems).catch((err) =>
       console.error('Failed to send order confirmation email:', err.message)
     );
+
+    // Every order gets its own admin email, and each one carries the full
+    // pending queue as of right now — so whichever email is newest in the
+    // admin's inbox is a complete, up-to-date picture of what's outstanding.
+    pool.query("SELECT * FROM orders WHERE status = 'pending' ORDER BY created_at DESC")
+      .then(([pendingOrders]) =>
+        sendNewOrderAdminEmail(
+          { id: orderId, firstName, lastName, email, phone, address1, city, postalCode, paymentMethod, subtotal, shippingFee, total },
+          lineItems,
+          pendingOrders
+        )
+      )
+      .catch((err) => console.error('Failed to send new-order admin email:', err.message));
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -188,61 +215,108 @@ export const getInvoice = catchAsync(async (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="${publicId}-invoice.pdf"`);
   doc.pipe(res);
 
-  // Header
-  doc.fontSize(20).font('Helvetica-Bold').text('NEOGRANCE', { align: 'left' });
-  doc.fontSize(10).font('Helvetica').fillColor('#555').text('Minimalist Luxury Fragrances', { align: 'left' });
-  doc.moveDown(1.5);
+  const LEFT = 50;
+  const RIGHT = 545;
+  const WIDTH = RIGHT - LEFT;
+  const BLACK = '#0a0a0a';
+  const GRAY = '#555555';
+  const FAINT = '#999999';
+  const LINE = '#e5e5e5';
+  const orderDate = new Date(order.created_at).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
 
-  doc.fontSize(14).font('Helvetica-Bold').fillColor('#000').text('INVOICE');
-  doc.fontSize(10).font('Helvetica').fillColor('#333');
-  doc.text(`Order ID: ${publicId}`);
-  doc.text(`Date: ${new Date(order.created_at).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}`);
-  doc.text(`Payment Method: ${order.payment_method === 'bank_transfer' ? 'Bank Transfer' : 'Cash on Delivery'}`);
-  doc.moveDown(1);
+  // ---- Header: logo (on its own dark chip, since the logo art is white-on-
+  // transparent) on the left, "INVOICE" + date on the right. ----
+  doc.roundedRect(LEFT, 40, 150, 54, 4).fill(BLACK);
+  doc.image(LOGO_PATH, LEFT + 15, 55, { fit: [120, 24], align: 'center' });
 
-  doc.font('Helvetica-Bold').text('Billed To');
-  doc.font('Helvetica').text(`${order.first_name} ${order.last_name}`);
-  doc.text(order.email);
-  doc.text(order.phone);
-  doc.text(order.address1);
-  doc.text(`${order.city}, ${order.postal_code}`);
-  doc.moveDown(1.5);
+  doc.fillColor(BLACK).font('Helvetica-Bold').fontSize(22).text('INVOICE', LEFT, 44, { width: WIDTH, align: 'right' });
+  doc.fillColor(GRAY).font('Helvetica').fontSize(10).text(orderDate, LEFT, 72, { width: WIDTH, align: 'right' });
 
-  // Line items table
-  const tableTop = doc.y;
-  const col = { name: 50, qty: 340, price: 400, total: 470 };
-  doc.font('Helvetica-Bold').fontSize(10);
-  doc.text('Item', col.name, tableTop);
-  doc.text('Qty', col.qty, tableTop);
-  doc.text('Price', col.price, tableTop);
-  doc.text('Total', col.total, tableTop);
-  doc.moveTo(50, tableTop + 15).lineTo(545, tableTop + 15).strokeColor('#ccc').stroke();
+  doc.moveTo(LEFT, 112).lineTo(RIGHT, 112).strokeColor(BLACK).lineWidth(1.5).stroke();
 
-  let y = tableTop + 22;
+  // ---- From / Bill To ----
+  const infoTop = 132;
+  doc.fillColor(BLACK).font('Helvetica-Bold').fontSize(9).text('FROM', LEFT, infoTop);
+  doc.fillColor(GRAY).font('Helvetica').fontSize(10)
+    .text('Neogrance', LEFT, infoTop + 15)
+    .text('Kuliyapitiya, Sri Lanka', LEFT, infoTop + 30)
+    .text('+94 76 160 7224', LEFT, infoTop + 45)
+    .text('neo@neogrance.com', LEFT, infoTop + 60);
+
+  const billX = LEFT + WIDTH / 2;
+  doc.fillColor(BLACK).font('Helvetica-Bold').fontSize(9).text('BILL TO', billX, infoTop);
+  doc.fillColor(GRAY).font('Helvetica').fontSize(10)
+    .text(`${order.first_name} ${order.last_name}`, billX, infoTop + 15)
+    .text(order.address1, billX, infoTop + 30)
+    .text(`${order.city}, ${order.postal_code}`, billX, infoTop + 45)
+    .text(order.phone, billX, infoTop + 60)
+    .text(order.email, billX, infoTop + 75);
+
+  doc.fillColor(FAINT).font('Helvetica').fontSize(9).text(
+    `Order ID: ${publicId}    •    Payment: ${order.payment_method === 'bank_transfer' ? 'Bank Transfer' : 'Cash on Delivery'}`,
+    LEFT, infoTop + 95
+  );
+
+  // ---- Line items table ----
+  const col = { name: LEFT + 12, qty: 355, price: 400, total: 470 };
+  let tableTop = infoTop + 125;
+  doc.roundedRect(LEFT, tableTop, WIDTH, 28, 3).fill(BLACK);
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(9);
+  doc.text('ITEM DESCRIPTION', col.name, tableTop + 10);
+  doc.text('QTY', col.qty, tableTop + 10, { width: 40, align: 'center' });
+  doc.text('UNIT PRICE', col.price, tableTop + 10, { width: 65, align: 'right' });
+  doc.text('TOTAL', col.total, tableTop + 10, { width: 65, align: 'right' });
+
+  let y = tableTop + 28;
   doc.font('Helvetica').fontSize(10);
   for (const item of items) {
-    const label = item.variant_name ? `${item.product_name} (${item.variant_name})` : item.product_name;
-    doc.text(label, col.name, y, { width: 280 });
-    doc.text(String(item.quantity), col.qty, y);
-    doc.text(`Rs. ${Number(item.unit_price).toLocaleString()}`, col.price, y);
-    doc.text(`Rs. ${Number(item.line_total).toLocaleString()}`, col.total, y);
-    y += 20;
+    const rowHeight = item.variant_name ? 34 : 24;
+    doc.fillColor(BLACK).font('Helvetica-Bold').text(item.product_name, col.name, y + 8, { width: 290 });
+    if (item.variant_name) {
+      doc.fillColor(FAINT).font('Helvetica').fontSize(9).text(item.variant_name, col.name, y + 21, { width: 290 });
+      doc.fontSize(10);
+    }
+    doc.fillColor(GRAY).font('Helvetica').text(String(item.quantity), col.qty, y + 8, { width: 40, align: 'center' });
+    doc.text(`Rs. ${Number(item.unit_price).toLocaleString()}`, col.price, y + 8, { width: 65, align: 'right' });
+    doc.fillColor(BLACK).font('Helvetica-Bold').text(`Rs. ${Number(item.line_total).toLocaleString()}`, col.total, y + 8, { width: 65, align: 'right' });
+    y += rowHeight;
+    doc.moveTo(LEFT, y).lineTo(RIGHT, y).strokeColor(LINE).lineWidth(1).stroke();
   }
 
-  doc.moveTo(50, y + 4).lineTo(545, y + 4).strokeColor('#ccc').stroke();
+  // ---- Totals ----
+  const totalsX = billX;
+  const totalsW = RIGHT - billX;
   y += 14;
-  doc.text('Subtotal', col.price, y);
-  doc.text(`Rs. ${Number(order.subtotal).toLocaleString()}`, col.total, y);
-  y += 16;
-  doc.text('Shipping', col.price, y);
-  doc.text(`Rs. ${Number(order.shipping_fee).toLocaleString()}`, col.total, y);
-  y += 16;
-  doc.font('Helvetica-Bold');
-  doc.text('Total', col.price, y);
-  doc.text(`Rs. ${Number(order.total).toLocaleString()}`, col.total, y);
+  doc.fillColor(GRAY).font('Helvetica').fontSize(10);
+  doc.text('Subtotal', totalsX, y, { width: totalsW - 90 });
+  doc.fillColor(BLACK).text(`Rs. ${Number(order.subtotal).toLocaleString()}`, totalsX + totalsW - 90, y, { width: 90, align: 'right' });
+  y += 18;
+  doc.fillColor(GRAY).text('Shipping', totalsX, y, { width: totalsW - 90 });
+  doc.fillColor(BLACK).text(`Rs. ${Number(order.shipping_fee).toLocaleString()}`, totalsX + totalsW - 90, y, { width: 90, align: 'right' });
 
-  doc.moveDown(4);
-  doc.font('Helvetica').fontSize(9).fillColor('#888').text('Thank you for shopping with Neogrance.', { align: 'center' });
+  y += 26;
+  doc.roundedRect(totalsX, y, totalsW, 34, 3).fill(BLACK);
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(11);
+  doc.text('TOTAL DUE', totalsX + 14, y + 11);
+  doc.text(`Rs. ${Number(order.total).toLocaleString()}`, totalsX, y + 11, { width: totalsW - 14, align: 'right' });
+
+  // ---- Thank you + footer ----
+  y += 60;
+  doc.fillColor(BLACK).font('Helvetica-Bold').fontSize(12).text('Thank you for your business.', LEFT, y, { width: WIDTH, align: 'center' });
+
+  y += 40;
+  doc.moveTo(LEFT, y).lineTo(RIGHT, y).strokeColor(LINE).lineWidth(1).stroke();
+  y += 20;
+
+  const footerColW = WIDTH / 3;
+  const footerCol = (title, lines, x) => {
+    doc.fillColor(BLACK).font('Helvetica-Bold').fontSize(9).text(title, x, y);
+    doc.fillColor(GRAY).font('Helvetica').fontSize(9);
+    lines.forEach((line, i) => doc.text(line, x, y + 14 + i * 13, { width: footerColW - 10 }));
+  };
+  footerCol('Questions?', ['neo@neogrance.com', '+94 76 160 7224'], LEFT);
+  footerCol('Track Your Order', ['neogrance.com/track-order', `Use ${publicId} + your email`], LEFT + footerColW);
+  footerCol('Note', ['Keep this invoice — it has', 'the order ID for tracking.'], LEFT + footerColW * 2);
 
   doc.end();
 });

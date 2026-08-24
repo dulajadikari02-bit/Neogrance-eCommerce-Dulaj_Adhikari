@@ -147,20 +147,21 @@ export const forgotPassword = catchAsync(async (req, res) => {
   const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
   const user = rows[0];
 
-  // Always respond the same way whether or not the account exists — otherwise
-  // this endpoint could be used to check which emails have an account here.
-  if (user) {
-    const token = crypto.randomBytes(32).toString('hex');
-    // Only the hash is stored, same reasoning as passwords: if the database
-    // ever leaked, the raw tokens (usable directly from the email link)
-    // wouldn't be exposed along with it.
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-    await pool.query('UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?', [tokenHash, expiresAt, user.id]);
-    sendPasswordResetEmail(user, token).catch((err) => console.error('Failed to send password reset email:', err.message));
-  }
+  // Product decision: tell the user outright whether that email has an
+  // account, so they're not left guessing why no email arrived. Trades away
+  // the anti-enumeration protection a same-response-either-way approach gives.
+  if (!user) throw new ApiError(404, 'No account found with that email address.');
 
-  res.json({ message: "If an account exists for that email, we've sent a password reset link." });
+  const token = crypto.randomBytes(32).toString('hex');
+  // Only the hash is stored, same reasoning as passwords: if the database
+  // ever leaked, the raw tokens (usable directly from the email link)
+  // wouldn't be exposed along with it.
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  await pool.query('UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?', [tokenHash, expiresAt, user.id]);
+  sendPasswordResetEmail(user, token).catch((err) => console.error('Failed to send password reset email:', err.message));
+
+  res.json({ message: "We've sent a password reset link to your email." });
 });
 
 export const resetPasswordValidators = [

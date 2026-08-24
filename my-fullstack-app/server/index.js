@@ -42,8 +42,13 @@ app.use(cookieParser());
 // data in the database instead — see /media below — specifically because
 // Hostinger gives each deploy its own fresh folder, so anything only saved
 // to local disk here is lost on the next redeploy.
+//
+// Deliberately NOT served via express.static: a slip is a customer's bank
+// transfer proof (often a screenshot with account details), and a static
+// route would make it fetchable by anyone with the URL, no login required.
+// It's served instead through GET /api/admin/orders/:id/slip, gated by
+// requireStaffOrAdmin — see admin.controller.js's getOrderSlip.
 fs.mkdirSync(path.join(process.cwd(), 'uploads', 'slips'), { recursive: true });
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use('/media', mediaRoutes);
 
 // API routes

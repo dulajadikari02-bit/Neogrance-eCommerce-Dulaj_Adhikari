@@ -49,6 +49,7 @@ router.delete('/categories/:id', requireAdmin, categoryController.deleteCategory
 router.get('/reviews', requireAdmin, adminController.listReviewsValidators, adminController.listReviews);
 router.put('/reviews/:id/approve', requireAdmin, adminController.approveReview);
 router.put('/reviews/:id/reject', requireAdmin, adminController.rejectReview);
+router.delete('/reviews/:id', requireAdmin, adminController.deleteReview);
 
 // Promo banner — SuperAdmin only.
 router.get('/banner', requireAdmin, bannerController.adminGetBanner);
@@ -60,6 +61,8 @@ router.put('/hero-banner', requireAdmin, uploadHeroBannerImage.single('image'), 
 
 // Orders — staff's core duty: process orders.
 router.get('/orders', adminController.listOrders);
+router.get('/orders/:id', adminController.getOrderDetail);
+router.get('/orders/:id/slip', adminController.getOrderSlip);
 router.put('/orders/:id/status', adminController.updateOrderStatusValidators, adminController.updateOrderStatus);
 
 // Customers — SuperAdmin only (surfaces per-customer revenue).
