@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Heart } from 'lucide-react';
-import ProductCard from '../componants/ProductCard';
+import ProductCard from '../components/ProductCard';
 import { useWishlist } from '../context/WishlistContext';
 
 export default function WishlistPage() {
@@ -14,7 +14,7 @@ export default function WishlistPage() {
       <div className="w-full px-4 md:px-8 xl:px-16 2xl:px-24 flex flex-col items-center">
 
         {/* ================= BREADCRUMB ================= */}
-        <div className="flex justify-center items-center text-[10px] sm:text-xs tracking-[2px] text-gray-500 uppercase font-medium mb-12">
+        <div className="flex justify-center items-center text-[9px] sm:text-[11px] tracking-[2px] text-gray-500 uppercase font-medium mb-12">
           <span className="hover:text-white cursor-pointer transition-colors">Home</span>
           <ChevronRight size={14} className="mx-2" />
           <span className="hover:text-white cursor-pointer transition-colors">Account</span>

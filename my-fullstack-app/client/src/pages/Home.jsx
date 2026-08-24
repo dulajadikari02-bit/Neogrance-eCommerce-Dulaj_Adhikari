@@ -1,11 +1,11 @@
 import React from 'react';
-import HeroBanner from '../componants/HeroBanner';
-import ProductGrid from '../componants/TopRatedProductGrid';
-import NewArrivals from '../componants/NewArrivals';
-import CategoryGrid from '../componants/CategoryGrid';
-import PromoBanner from '../componants/PromoBanner';
-import ReviewSection from '../componants/ReviewSection';
-import TrustBar from '../componants/TrustBar';
+import HeroBanner from '../components/HeroBanner';
+import ProductGrid from '../components/TopRatedProductGrid';
+import NewArrivals from '../components/NewArrivals';
+import CategoryGrid from '../components/CategoryGrid';
+import PromoBanner from '../components/PromoBanner';
+import ReviewSection from '../components/ReviewSection';
+import TrustBar from '../components/TrustBar';
 
 const Home = () => {
   return (

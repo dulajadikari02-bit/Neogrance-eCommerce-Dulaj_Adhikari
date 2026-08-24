@@ -12,6 +12,11 @@ export default function CartDrawer({ isOpen, onClose }) {
     navigate('/checkout');
   };
 
+  const handleViewCart = () => {
+    onClose();
+    navigate('/cart');
+  };
+
   return (
     <>
       {/* Background Overlay */}
@@ -127,6 +132,13 @@ export default function CartDrawer({ isOpen, onClose }) {
             <p className="text-[10px] text-white/40 tracking-wider font-light">
               Shipping & taxes calculated at checkout.
             </p>
+
+            <button
+              onClick={handleViewCart}
+              className="w-full border border-white/20 text-white font-konexy text-[11px] tracking-[3px] uppercase py-3.5 rounded-lg flex items-center justify-center gap-2 hover:border-white/50 hover:bg-white/5 transition-all duration-300"
+            >
+              <span>View Cart</span>
+            </button>
 
             <button
               onClick={handleCheckout}

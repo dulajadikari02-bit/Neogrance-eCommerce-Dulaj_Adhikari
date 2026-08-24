@@ -1,6 +1,6 @@
 import React from 'react';
-import ProductListGrid from '../componants/ProductListGrid';
-import ReviewSection from '../componants/ReviewSection';
+import ProductListGrid from '../components/ProductListGrid';
+import ReviewSection from '../components/ReviewSection';
 
 export default function Womens() {
   return (

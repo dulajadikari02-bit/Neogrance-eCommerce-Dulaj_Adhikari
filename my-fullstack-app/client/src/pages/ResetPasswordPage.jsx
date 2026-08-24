@@ -1,13 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Lock, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
+import { useAuthModal } from '../context/AuthModalContext';
 import { errorMessage } from '../lib/api';
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { resetPassword } = useAuth();
+  const { openAuth } = useAuthModal();
+
+  // Coming in from the email link, the browser's back button shouldn't take
+  // the user anywhere from here — re-push this URL every time they try.
+  useEffect(() => {
+    window.history.pushState(null, '', window.location.href);
+    const trapBack = () => window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', trapBack);
+    return () => window.removeEventListener('popstate', trapBack);
+  }, []);
 
   const token = searchParams.get('token') || '';
   const email = searchParams.get('email') || '';
@@ -52,10 +63,10 @@ export default function ResetPasswordPage() {
         <h1 className="font-konexy text-2xl tracking-[4px] uppercase mb-3">Password Reset</h1>
         <p className="text-gray-400 text-sm mb-10">You can now sign in with your new password.</p>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => { navigate('/', { replace: true }); openAuth(); }}
           className="bg-white text-black font-konexy text-[11px] tracking-[3px] uppercase py-3.5 px-10 rounded-lg hover:bg-gray-200 transition-all"
         >
-          Go to Homepage
+          Log In Now
         </button>
       </div>
     );

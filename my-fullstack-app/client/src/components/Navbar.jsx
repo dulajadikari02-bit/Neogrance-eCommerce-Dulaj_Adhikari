@@ -48,6 +48,9 @@ const Navbar = () => {
   const { isAuthOpen, openAuth, closeAuth } = useAuthModal();
   const { isAuthenticated } = useAuth();
   const location = useLocation();
+  // Checkout is a focused, single-purpose page — the navbar there shows
+  // only the logo, with no search/cart/wishlist/profile distractions.
+  const isMinimalNav = location.pathname === '/checkout';
 
   const handleProfileClick = () => {
     if (isAuthenticated) setIsProfileOpen(true);
@@ -84,7 +87,21 @@ const Navbar = () => {
       }`}
     >
       <div className="w-full px-4 md:px-8 xl:px-16 2xl:px-24">
-
+        {isMinimalNav ? (
+          /* Checkout's focused navbar: logo only, nothing to distract from finishing the order. */
+          <div className="flex items-center justify-center">
+            <Link to="/">
+              <img
+                src={logo}
+                alt="Logo"
+                className={`w-auto object-contain transition-all duration-500 ${
+                  isScrolled ? 'h-8' : 'h-10'
+                }`}
+              />
+            </Link>
+          </div>
+        ) : (
+        <>
         {/* Top Row: Search (Left), Logo (Center), Icons (Right) */}
         <div className="flex items-center justify-between">
           
@@ -194,8 +211,12 @@ const Navbar = () => {
             );
           })}
         </div>
+        </>
+        )}
       </div>
 
+      {!isMinimalNav && (
+      <>
       {/* Live Search Backdrop + Mega Panel */}
       {isSearchOpen && trimmedQuery && (
         <>
@@ -239,7 +260,7 @@ const Navbar = () => {
       )}
 
       {/* Mobile Menu Dropdown */}
-      <div 
+      <div
         className={`md:hidden overflow-hidden transition-all duration-500 bg-[#0a0a0a] ${
           isMobileMenuOpen ? 'max-h-72 border-t border-white/10 mt-3' : 'max-h-0'
         }`}
@@ -276,6 +297,8 @@ const Navbar = () => {
           </button>
         </div>
       </div>
+      </>
+      )}
     </nav>
 
     {/* Auth Modal - Centered on screen */}

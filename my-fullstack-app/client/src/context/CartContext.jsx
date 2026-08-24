@@ -48,8 +48,16 @@ export function CartProvider({ children }) {
     if (authLoading) return;
 
     if (!user) {
+      // Just logged out (rather than never having logged in this session) —
+      // keep showing whatever was in the cart instead of reverting to
+      // localStorage's guest cart, which is stale/empty by now. This is what
+      // lets someone log out to switch accounts without losing their items.
+      if (mergedForUser.current !== null) {
+        saveGuestCart(cartItems);
+      } else {
+        setCartItems(loadGuestCart());
+      }
       mergedForUser.current = null;
-      setCartItems(loadGuestCart());
       return;
     }
 
@@ -93,6 +101,7 @@ export function CartProvider({ children }) {
           quantity,
         });
         setCartItems(data.items.map(mapServerCartItem));
+        openCart();
       } catch {
         // leave the cart as it was — better than showing a fake success
       }
@@ -118,6 +127,7 @@ export function CartProvider({ children }) {
         },
       ];
     });
+    openCart();
   };
 
   const removeFromCart = async (key) => {

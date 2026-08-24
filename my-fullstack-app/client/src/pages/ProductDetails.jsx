@@ -3,8 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Star, Minus, Plus, ShoppingBag, ChevronRight, Heart, Camera, X as XIcon } from 'lucide-react';
 import api, { errorMessage } from '../lib/api';
-import TopRatedProductGrid from '../componants/TopRatedProductGrid';
-import ProductCard from '../componants/ProductCard';
+import TopRatedProductGrid from '../components/TopRatedProductGrid';
+import ProductCard from '../components/ProductCard';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthProvider';
@@ -44,6 +44,7 @@ export default function ProductDetail() {
         setReviews(data.reviews);
         setRelatedProducts(data.relatedProducts || []);
         setSelectedVariant(0);
+        setQuantity(1);
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
@@ -74,23 +75,33 @@ export default function ProductDetail() {
 
   const wished = isInWishlist(product.id);
 
-  const sourceImages = [product.image, product.hoverImage, product.image3 || product.image].filter(Boolean);
+  // Main image is always first/centered. Each of the other two slots falls
+  // back to the main image independently when its own upload is missing —
+  // it must never fall back to whichever image the *other* slot has, or a
+  // single missing slot ends up duplicating the wrong photo on both sides.
   const displayImages = [
-    sourceImages[0],
-    sourceImages[1] || sourceImages[0],
-    sourceImages[2] || sourceImages[1] || sourceImages[0],
-  ].slice(0, 3);
+    product.image,
+    product.hoverImage || product.image,
+    product.image3 || product.image,
+  ];
 
   // "Full Bottle" isn't a row in product_variants — it's the product's own base price/id.
   // id stays null (not a string sentinel) so addToCart takes the same already-working
   // "no variant" path that products without any variants use today.
   const sizeOptions = [
     ...(product.fullBottleAvailable
-      ? [{ id: null, name: 'Full Bottle', label: product.bottleMl ? `${product.bottleMl}ML` : null, price: product.price }]
+      ? [{ id: null, name: 'Full Bottle', label: product.bottleMl ? `${product.bottleMl}ML` : null, price: product.price, stock: product.stock }]
       : []),
     ...variants,
   ];
-  const activeVariant = sizeOptions[selectedVariant] || { price: product.price, name: null, id: null };
+  const activeVariant = sizeOptions[selectedVariant] || { price: product.price, name: null, id: null, stock: product.stock };
+  // Full Bottle uses the product's own stock; a decant variant has its own separate count.
+  const activeStock = activeVariant.stock ?? 0;
+
+  const handleSelectVariant = (index) => {
+    setSelectedVariant(index);
+    setQuantity(1);
+  };
 
   // Lets a finger-swipe on mobile move to the next/previous image, the same
   // way clicking a side image already does on desktop.
@@ -102,7 +113,7 @@ export default function ProductDetail() {
 
   const handleQuantity = (type) => {
     if (type === 'dec' && quantity > 1) setQuantity(quantity - 1);
-    if (type === 'inc') setQuantity(quantity + 1);
+    if (type === 'inc' && quantity < activeStock) setQuantity(quantity + 1);
   };
 
   // Decide how each of the 3 images should look: centered (active), or
@@ -146,7 +157,7 @@ export default function ProductDetail() {
       <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
 
         {/* ================= BREADCRUMB ================= */}
-        <div className="flex justify-center items-center text-[10px] sm:text-xs tracking-[2px] text-gray-500 uppercase font-medium mb-12">
+        <div className="flex justify-center items-center text-[9px] sm:text-[11px] tracking-[2px] text-gray-500 uppercase font-medium mb-12">
           <Link to="/" className="hover:text-white cursor-pointer transition-colors">Home</Link>
           <ChevronRight size={14} className="mx-2" />
           <span className="hover:text-white cursor-pointer transition-colors">{product.category || 'Fragrances'}</span>
@@ -205,17 +216,22 @@ export default function ProductDetail() {
           </div>
 
           <div className="mb-8">
-            <span className="text-2xl sm:text-3xl font-light tracking-widest text-white">
+            <span className="text-2xl sm:text-3xl font-light tracking-widest text-white block">
               Rs. {Number(activeVariant.price).toLocaleString()}
             </span>
+            {product.bottleMl && (
+              <span className="block text-white/40 text-[11px] tracking-[3px] uppercase mt-2">
+                Full Bottle Size — {product.bottleMl}ML
+              </span>
+            )}
           </div>
 
-          {product.stock > 0 && product.isLowStock && (
+          {activeStock > 0 && activeStock <= (product.lowStockThreshold ?? 5) && (
             <p className="text-amber-500 text-[11px] tracking-widest uppercase mb-6">
-              Only {product.stock} left in stock — order soon
+              Only {activeStock} left in stock — order soon
             </p>
           )}
-          {product.stock <= 0 && (
+          {activeStock <= 0 && (
             <p className="text-red-500 text-[11px] tracking-widest uppercase mb-6">Currently sold out</p>
           )}
 
@@ -233,23 +249,30 @@ export default function ProductDetail() {
               </span>
 
               <div className="flex flex-wrap justify-center gap-4">
-                {sizeOptions.map((variant, index) => (
-                  <button
-                    key={variant.id ?? 'full-bottle'}
-                    onClick={() => setSelectedVariant(index)}
-                    className={`relative flex flex-col items-center justify-center py-5 px-3 rounded-xl border transition-all duration-300 bg-black w-full sm:flex-1 sm:basis-0 sm:min-w-[160px] sm:max-w-[220px]
-                      ${selectedVariant === index
-                        ? 'border-white shadow-[0_0_20px_rgba(255,255,255,0.08)] scale-[1.02]'
-                        : 'border-white/10 hover:border-white/40 hover:-translate-y-1'}`}
-                  >
-                    <span className={`text-xs uppercase tracking-widest font-medium mb-1.5 transition-colors ${selectedVariant === index ? 'text-white' : 'text-gray-400'}`}>
-                      {variant.name}
-                    </span>
-                    <span className="text-[10px] text-gray-500 uppercase tracking-widest">
-                      {variant.label}
-                    </span>
-                  </button>
-                ))}
+                {sizeOptions.map((variant, index) => {
+                  const soldOut = (variant.stock ?? 0) <= 0;
+                  return (
+                    <button
+                      key={variant.id ?? 'full-bottle'}
+                      type="button"
+                      disabled={soldOut}
+                      onClick={() => handleSelectVariant(index)}
+                      className={`relative flex flex-col items-center justify-center py-5 px-3 rounded-xl border transition-all duration-300 bg-black w-full sm:flex-1 sm:basis-0 sm:min-w-[160px] sm:max-w-[220px]
+                        ${soldOut
+                          ? 'border-white/5 opacity-40 cursor-not-allowed'
+                          : selectedVariant === index
+                          ? 'border-white shadow-[0_0_20px_rgba(255,255,255,0.08)] scale-[1.02]'
+                          : 'border-white/10 hover:border-white/40 hover:-translate-y-1'}`}
+                    >
+                      <span className={`text-xs uppercase tracking-widest font-medium mb-1.5 transition-colors ${selectedVariant === index && !soldOut ? 'text-white' : 'text-gray-400'}`}>
+                        {variant.name}
+                      </span>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-widest">
+                        {soldOut ? 'Sold Out' : variant.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -267,13 +290,13 @@ export default function ProductDetail() {
             </div>
 
             <button
-              disabled={product.stock <= 0}
+              disabled={activeStock <= 0 || quantity > activeStock}
               onClick={() => addToCart(product, activeVariant, quantity)}
               className="h-12 sm:h-14 w-full sm:flex-1 shrink-0 bg-white text-black font-konexy text-[11px] tracking-[3px] uppercase rounded-lg flex items-center justify-center gap-2.5 sm:gap-3 hover:bg-gray-200 hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ShoppingBag size={16} className="sm:hidden" />
               <ShoppingBag size={18} className="hidden sm:block" />
-              {product.stock <= 0 ? 'Sold Out' : 'Add To Cart'}
+              {activeStock <= 0 ? 'Sold Out' : 'Add To Cart'}
             </button>
 
             <button

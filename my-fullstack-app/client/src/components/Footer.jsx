@@ -97,7 +97,7 @@ export default function Footer() {
                 <Link to="/unisex" className="hover:text-white transition-colors">Unisex Collection</Link>
               </li>
               <li>
-                <a href="#new" className="hover:text-white transition-colors">New Arrivals</a>
+                <Link to="/#new-arrivals" className="hover:text-white transition-colors">New Arrivals</Link>
               </li>
             </ul>
           </div>
@@ -111,9 +111,7 @@ export default function Footer() {
               <li>
                 <Link to="/contact" className="hover:text-white transition-colors">Contact Us</Link>
               </li>
-              <li>
-                <a href="#shipping" className="hover:text-white transition-colors">Shipping & Returns</a>
-              </li>
+             
               <li>
                 <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
               </li>
@@ -131,11 +129,11 @@ export default function Footer() {
             <ul className="space-y-4 text-sm font-light mb-6 flex flex-col md:items-start items-center">
               <li className="flex items-start gap-3">
                 <MapPin size={18} className="text-white/40 shrink-0 mt-0.5" />
-                <span>Kuliyapitiya</span>
+                <span>Kuliyapitiya, Sri Lanka</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone size={18} className="text-white/40 shrink-0" />
-                <span>+94 74 218 1258</span>
+                <span>+94 76 160 7224</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail size={18} className="text-white/40 shrink-0" />

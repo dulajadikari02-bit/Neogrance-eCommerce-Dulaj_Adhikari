@@ -52,21 +52,21 @@ export default function Contact() {
               <MapPin size={18} className="text-white/40 shrink-0 mt-0.5" />
               <div>
                 <span className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">Visit</span>
-                <span className="text-sm text-gray-300">123 Luxury Avenue, Colombo 03</span>
+                <span className="text-sm text-gray-300">Kuliyapitiya, Sri Lanka</span>
               </div>
             </div>
             <div className="flex items-start gap-4">
               <Phone size={18} className="text-white/40 shrink-0 mt-0.5" />
               <div>
                 <span className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">Call</span>
-                <span className="text-sm text-gray-300">+94 11 234 5678</span>
+                <span className="text-sm text-gray-300">+94 76 160 7224</span>
               </div>
             </div>
             <div className="flex items-start gap-4">
               <Mail size={18} className="text-white/40 shrink-0 mt-0.5" />
               <div>
                 <span className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">Email</span>
-                <span className="text-sm text-gray-300">info@neogrance.com</span>
+                <span className="text-sm text-gray-300">neo@neogrance.com</span>
               </div>
             </div>
           </div>

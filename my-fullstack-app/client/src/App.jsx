@@ -3,9 +3,9 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { AnimatePresence, motion } from 'framer-motion';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
-import Navbar from './componants/Navbar';
-import Footer from './componants/Footer';
-import ScrollManager from './componants/ScrollManager';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import ScrollManager from './components/ScrollManager';
 import Home from './pages/Home';
 import Mens from './pages/Mens';
 import Womens from './pages/Womens';
@@ -14,6 +14,7 @@ import CategoryPage from './pages/CategoryPage';
 import Contact from './pages/Contact';
 import ProductDetails from './pages/ProductDetails';
 import WishlistPage from './pages/WishlistPage';
+import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import TrackOrderPage from './pages/TrackOrderPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
@@ -42,6 +43,9 @@ function PageTransition({ children }) {
 // Kept separate from the admin route, which owns its own full-screen layout.
 function StorefrontLayout() {
   const location = useLocation();
+  // The checkout page shows a stripped-down, logo-only navbar (single row,
+  // no icons/links row), so it needs a shorter top offset to match.
+  const isCheckout = location.pathname === '/checkout';
 
   return (
     <div className="relative min-h-screen flex flex-col font-medium">
@@ -60,7 +64,10 @@ function StorefrontLayout() {
       <Navbar />
 
       {/* Main Content Routes */}
-      <main className="flex-grow pt-[73px] md:pt-[117px]"> {/* Padding matches the navbar's actual height: mobile 73px (single row), md+ 117px (with the nav links row added) */}
+      {/* Padding matches the navbar's actual height: mobile 73px (single row),
+          md+ 117px (with the nav links row added) — except on checkout, whose
+          navbar is always just the single logo row. */}
+      <main className={`flex-grow ${isCheckout ? 'pt-[73px]' : 'pt-[73px] md:pt-[117px]'}`}>
         <AnimatePresence mode="wait">
           <PageTransition key={location.pathname}>
             <Routes location={location}>
@@ -72,6 +79,7 @@ function StorefrontLayout() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/product/:id" element={<ProductDetails />} />
               <Route path="/wishlist" element={<WishlistPage />} />
+              <Route path="/cart" element={<CartPage />} />
               <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/track-order" element={<TrackOrderPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />

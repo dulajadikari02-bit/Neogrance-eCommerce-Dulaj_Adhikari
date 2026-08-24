@@ -42,7 +42,7 @@ export default function TrackOrderPage() {
     <div className="min-h-screen pt-2 pb-24 w-full text-white flex flex-col items-center">
       <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
 
-        <div className="flex justify-center items-center text-[10px] sm:text-xs tracking-[2px] text-gray-500 uppercase font-medium mb-10">
+        <div className="flex justify-center items-center text-[9px] sm:text-[11px] tracking-[2px] text-gray-500 uppercase font-medium mb-10">
           <Link to="/" className="hover:text-white transition-colors">Home</Link>
           <ChevronRight size={14} className="mx-2" />
           <span className="text-white">Track Order</span>

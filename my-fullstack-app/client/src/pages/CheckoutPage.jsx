@@ -177,7 +177,7 @@ export default function CheckoutPage() {
       <div className="w-full px-4 md:px-8 xl:px-16 2xl:px-24">
         
         {/* ================= BREADCRUMB ================= */}
-        <div className="flex items-center text-[10px] sm:text-xs tracking-[2px] text-gray-500 uppercase font-medium mb-10">
+        <div className="flex items-center text-[9px] sm:text-[11px] tracking-[2px] text-gray-500 uppercase font-medium mb-10">
           <Link to="/" className="hover:text-white transition-colors">Home</Link>
           <ChevronRight size={14} className="mx-2" />
           <Link to="/cart" className="hover:text-white transition-colors">Cart</Link>
@@ -351,8 +351,16 @@ export default function CheckoutPage() {
           {/* ================= RIGHT COLUMN: ORDER SUMMARY ================= */}
           <div className="lg:col-span-5">
             <div className="bg-[#111] border border-white/10 rounded-2xl p-6 lg:p-8 sticky top-28">
-              <h2 className="font-konexy text-xl tracking-[3px] uppercase mb-6">Order Summary</h2>
-              
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-konexy text-xl tracking-[3px] uppercase">Order Summary</h2>
+                <Link
+                  to="/cart"
+                  className="text-[10px] text-white/50 hover:text-white uppercase tracking-widest underline underline-offset-4 transition-colors"
+                >
+                  Go to Cart
+                </Link>
+              </div>
+
               <div className="flex flex-col gap-4 mb-8 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                 {cartItems.map((item) => (
                   <div key={item.key} className="flex gap-4">

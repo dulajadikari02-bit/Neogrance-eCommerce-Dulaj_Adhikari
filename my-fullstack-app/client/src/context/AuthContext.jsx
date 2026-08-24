@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { Mail, Lock, User } from 'lucide-react';
 import { useAuth } from './AuthProvider';
@@ -10,22 +11,38 @@ export default function AuthContext() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { login, register, loginWithGoogle, forgotPassword } = useAuth();
   const { closeAuth } = useAuthModal();
+  const navigate = useNavigate();
+  const location = useLocation();
+  // Checkout is the one page where logging in should NOT bounce to home —
+  // the customer's guest cart just merged into their account and they're
+  // right there ready to finish checking out with it.
+  const isCheckoutPage = location.pathname === '/checkout';
 
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotStatus, setForgotStatus] = useState('');
   const [forgotSubmitting, setForgotSubmitting] = useState(false);
 
-  const handleChange = (field) => (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
+  // Clear a field's red outline as soon as the user starts fixing it.
+  const handleChange = (field) => (e) => {
+    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    setFieldErrors((prev) => (prev[field] ? { ...prev, [field]: false } : prev));
+  };
+  const inputClass = (field) =>
+    `w-full bg-[#111] border rounded-lg py-2.5 pl-12 pr-4 text-xs tracking-widest text-white placeholder-gray-600 focus:outline-none transition-colors ${
+      fieldErrors[field] ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-white/40'
+    }`;
 
   const handleGoogleSuccess = async (credentialResponse) => {
     setError('');
     try {
       await loginWithGoogle(credentialResponse.credential);
       closeAuth();
+      if (!isCheckoutPage) navigate('/');
     } catch (err) {
       setError(errorMessage(err, 'Google sign-in failed, please try again.'));
     }
@@ -35,6 +52,18 @@ export default function AuthContext() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    const errors = {};
+    if (!isLogin && !form.name.trim()) errors.name = true;
+    if (!form.email.trim()) errors.email = true;
+    if (!form.password) errors.password = true;
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors);
+      setError('Please fill in the highlighted fields.');
+      return;
+    }
+    setFieldErrors({});
+
     setIsSubmitting(true);
     try {
       if (isLogin) {
@@ -43,6 +72,7 @@ export default function AuthContext() {
         await register(form.name, form.email, form.password);
       }
       closeAuth();
+      if (!isCheckoutPage) navigate('/');
     } catch (err) {
       setError(errorMessage(err, 'Something went wrong, please try again.'));
     } finally {
@@ -123,7 +153,7 @@ export default function AuthContext() {
       </p>
 
       {/* ================= EMAIL FORM ================= */}
-      <form className="w-full flex flex-col gap-3 mb-5 text-left" onSubmit={handleSubmit}>
+      <form className="w-full flex flex-col gap-3 mb-5 text-left" onSubmit={handleSubmit} noValidate>
 
         {!isLogin && (
           <div className="relative group">
@@ -133,8 +163,7 @@ export default function AuthContext() {
               placeholder="FULL NAME"
               value={form.name}
               onChange={handleChange('name')}
-              required
-              className="w-full bg-[#111] border border-white/10 rounded-lg py-2.5 pl-12 pr-4 text-xs tracking-widest text-white placeholder-gray-600 focus:outline-none focus:border-white/40 transition-colors"
+              className={inputClass('name')}
             />
           </div>
         )}
@@ -146,8 +175,7 @@ export default function AuthContext() {
             placeholder="EMAIL ADDRESS"
             value={form.email}
             onChange={handleChange('email')}
-            required
-            className="w-full bg-[#111] border border-white/10 rounded-lg py-2.5 pl-12 pr-4 text-xs tracking-widest text-white placeholder-gray-600 focus:outline-none focus:border-white/40 transition-colors"
+            className={inputClass('email')}
           />
         </div>
 
@@ -158,9 +186,7 @@ export default function AuthContext() {
             placeholder="PASSWORD"
             value={form.password}
             onChange={handleChange('password')}
-            required
-            minLength={8}
-            className="w-full bg-[#111] border border-white/10 rounded-lg py-2.5 pl-12 pr-4 text-xs tracking-widest text-white placeholder-gray-600 focus:outline-none focus:border-white/40 transition-colors"
+            className={inputClass('password')}
           />
         </div>
 
@@ -217,7 +243,7 @@ export default function AuthContext() {
         {isLogin ? "Don't have an account? " : "Already have an account? "}
         <button
           type="button"
-          onClick={() => { setIsLogin(!isLogin); setError(''); }}
+          onClick={() => { setIsLogin(!isLogin); setError(''); setFieldErrors({}); }}
           className="text-white hover:text-gray-300 underline underline-offset-4 decoration-gray-700 hover:decoration-white transition-all"
         >
           {isLogin ? 'Sign up' : 'Log in'}

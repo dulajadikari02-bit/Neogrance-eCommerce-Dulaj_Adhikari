@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import ProductListGrid from '../componants/ProductListGrid';
-import ReviewSection from '../componants/ReviewSection';
+import ProductListGrid from '../components/ProductListGrid';
+import ReviewSection from '../components/ReviewSection';
 import api from '../lib/api';
 
 export default function CategoryPage() {
