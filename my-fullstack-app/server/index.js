@@ -20,6 +20,17 @@ import { notFoundHandler, errorHandler } from './src/middleware/errorHandler.js'
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Hostinger's Node.js hosting sits behind its own reverse proxy, which adds
+// an X-Forwarded-For header on every request. Without this, Express refuses
+// to trust that header at all — and express-rate-limit (used on auth,
+// checkout, contact, etc.) throws on every single request trying to read
+// the real client IP from it, since trusting a spoofable header blindly
+// would be a security problem. `1` means "trust exactly one hop" (that
+// proxy), so rate limiting still keys off the real visitor IP instead of
+// the proxy's, without trusting anything further upstream. Harmless
+// locally — there's no proxy in front of the dev server to forward from.
+app.set('trust proxy', 1);
+
 // Security & core middleware
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(
