@@ -13,6 +13,16 @@
   --font-konexy: "Konexy", sans-serif;
 }
 
+/* Mobile browsers reveal whatever's behind the page during overscroll
+   bounce (scrolling past the top/bottom). The site's background is a
+   `fixed` image that only covers the viewport, not that bounce area, so
+   without this the browser's default white shows through as a flash at
+   the top/bottom on every scroll. */
+html,
+body {
+  background-color: #000;
+}
+
 /* 3. Browsers show a text "I-beam" cursor over any plain text by default —
    that's normal, but on this site it looked like text was editable when it
    wasn't. Force a normal pointer everywhere, and let real inputs/links opt
